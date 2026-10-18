@@ -231,6 +231,7 @@ def snapshot_run(run_dir):
             records = []
             for case in journal.cases():
                 gate = journal.stage(case["id"], "gate") or {}
+                review = journal.stage(case["id"], "review") or {}
                 final = gate.get("final") or {}
                 evaluation = final.get("evaluation") or {}
                 source = case["source"]
@@ -238,7 +239,11 @@ def snapshot_run(run_dir):
                     Record(
                         case_id=case["id"],
                         source_hash=text_hash(source["content"]) if source else None,
-                        status="abstain" if gate.get("status") == "abstain" else case["state"],
+                        status=(
+                            "abstain"
+                            if gate.get("status") == "abstain" or review.get("status") == "abstain"
+                            else case["state"]
+                        ),
                         action=evaluation.get("final_action"),
                         labels=evaluation.get("labels"),
                         evidence=evaluation.get("evidence"),
