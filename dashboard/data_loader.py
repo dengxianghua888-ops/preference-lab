@@ -33,6 +33,8 @@ def read_run(path):
 
     journal = Journal.readonly(path.parent)
     try:
+        # All SELECTs, including the case list, must observe one committed WAL snapshot.
+        journal.db.execute("BEGIN")
         result = SynthesisKernel()._snapshot(journal, persist=False)
         result["cases"] = [
             dict(case_id=c["id"], state=c["state"], reason=c["reason"]) for c in journal.cases()

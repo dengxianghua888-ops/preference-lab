@@ -215,7 +215,13 @@ class LiteLLMTransport:
             raise TransportError(kind, code, retry_after) from exc
         finally:
             if stream is not None and hasattr(stream, "aclose"):
-                await stream.aclose()
+                # Cleanup is best effort: it must not replace a complete response or
+                # the classified generation error. External cancellation still propagates.
+                try:
+                    async with asyncio.timeout(min(1.0, config.stream_idle_timeout)):
+                        await stream.aclose()
+                except Exception:
+                    pass
 
 
 class RequestController:
