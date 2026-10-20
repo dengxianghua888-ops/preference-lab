@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 import os
 import random
 import time
+from datetime import UTC
 from decimal import Decimal
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 from uuid import uuid4
 
@@ -33,6 +36,22 @@ class TransportError(Exception):
     def __init__(self, kind: str, code: int | None = None, retry_after: float = 0):
         super().__init__(f"{kind}:{code}")
         self.kind, self.code, self.retry_after = kind, code, retry_after
+
+
+def _retry_after_seconds(value):
+    """Accept delay seconds or an HTTP-date without leaking provider header text."""
+    try:
+        seconds = float(value)
+    except (ValueError, TypeError):
+        try:
+            date = parsedate_to_datetime(value)
+            # Obsolete HTTP asctime dates omit the zone but still mean GMT.
+            if date.tzinfo is None:
+                date = date.replace(tzinfo=UTC)
+            seconds = date.timestamp() - time.time()
+        except (ValueError, TypeError, OverflowError, OSError):
+            return 0
+    return max(0, seconds) if math.isfinite(seconds) else 0
 
 
 def json_value(value):
@@ -207,10 +226,7 @@ class LiteLLMTransport:
             else:
                 kind = "unknown"
             headers = getattr(getattr(exc, "response", None), "headers", {}) or {}
-            try:
-                retry_after = max(0, float(headers.get("retry-after", 0)))
-            except (ValueError, TypeError):
-                retry_after = 0
+            retry_after = _retry_after_seconds(headers.get("retry-after", 0))
             # Never persist arbitrary provider exception strings (they can contain credentials).
             raise TransportError(kind, code, retry_after) from exc
         finally:
