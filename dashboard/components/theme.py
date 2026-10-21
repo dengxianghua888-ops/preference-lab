@@ -25,7 +25,7 @@ CSS = """
 .stApp{background:var(--bg)!important;background-image:radial-gradient(ellipse at 15% 20%,rgba(108,92,231,.06) 0%,transparent 50%),radial-gradient(ellipse at 85% 80%,rgba(0,206,201,.04) 0%,transparent 50%),radial-gradient(ellipse at 50% 50%,rgba(253,121,168,.025) 0%,transparent 40%)!important}
 section[data-testid="stSidebar"]{background:rgba(12,13,20,.92)!important;backdrop-filter:blur(20px)!important;-webkit-backdrop-filter:blur(20px)!important;border-right:1px solid var(--glass-b)!important}
 #MainMenu,footer,header{visibility:hidden}
-.stApp,.stApp p,.stApp span,.stApp div{color:var(--t1)!important;font-family:'Noto Sans SC','Inter',-apple-system,sans-serif!important;-webkit-font-smoothing:antialiased}
+.stApp{color:var(--t1)!important;font-family:'Noto Sans SC','Inter',-apple-system,sans-serif!important;-webkit-font-smoothing:antialiased}
 .stApp h1,.stApp h2,.stApp h3{font-family:'Space Grotesk',sans-serif!important;font-weight:700}
 
 div[data-testid="stMetric"]{background:var(--glass)!important;backdrop-filter:blur(24px)!important;-webkit-backdrop-filter:blur(24px)!important;border:1px solid var(--glass-b)!important;border-radius:var(--r-lg)!important;padding:22px 24px!important;transition:all .35s cubic-bezier(.4,0,.2,1);box-shadow:0 8px 32px rgba(0,0,0,.3)!important;position:relative;overflow:hidden}
