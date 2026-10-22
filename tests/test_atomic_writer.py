@@ -425,3 +425,38 @@ def test_stream_close_failure_is_prepublication_and_preserves_primary_error(tmp_
             raise ValueError("primary serialization error")
     assert target.read_text() == "old"
     assert list(tmp_path.iterdir()) == [target]
+
+
+@pytest.mark.parametrize("fsync_fails", [False, True])
+def test_parent_close_failure_preserves_fsync_error_and_closes_fd(tmp_path, fsync_fails):
+    target = tmp_path / "output"
+    target.write_text("old")
+    real_fsync, real_close = os.fsync, os.close
+    parent_descriptors = []
+    primary = OSError(errno.EIO, "primary parent directory fsync failure")
+    secondary = OSError(errno.EIO, "secondary parent directory close failure")
+
+    def fsync(fd):
+        if stat.S_ISDIR(os.fstat(fd).st_mode):
+            parent_descriptors.append(fd)
+            if fsync_fails:
+                raise primary
+        real_fsync(fd)
+
+    def close(fd):
+        real_close(fd)
+        if fd in parent_descriptors:
+            raise secondary
+
+    with (
+        patch.object(journal.os, "fsync", side_effect=fsync),
+        patch.object(journal.os, "close", side_effect=close),
+        pytest.raises(OSError) as caught,
+    ):
+        journal.atomic_write(target, "complete new file")
+    assert caught.value is (primary if fsync_fails else secondary)
+    assert target.read_text() == "complete new file"
+    assert list(tmp_path.iterdir()) == [target]
+    assert len(parent_descriptors) == 1
+    with pytest.raises(OSError, match="Bad file descriptor"):
+        os.fstat(parent_descriptors[0])

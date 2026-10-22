@@ -199,7 +199,11 @@ def atomic_writer(path: Path):
     try:
         os.fsync(fd)
     finally:
-        os.close(fd)
+        if sys.exc_info()[0] is not None:
+            with contextlib.suppress(OSError):
+                os.close(fd)
+        else:
+            os.close(fd)
 
 
 def atomic_write(path: Path, text: str) -> None:
