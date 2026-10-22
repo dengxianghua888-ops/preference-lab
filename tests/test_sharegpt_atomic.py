@@ -33,9 +33,11 @@ class ShareGPTAtomicExportTests(unittest.TestCase):
         path = self.root / "train_sharegpt.json"
         previous = b'[{"previous":"complete"}]\n'
         path.write_bytes(previous)
-        with patch("ecoalign_forge.runtime.journal.os.replace", side_effect=OSError("disk fault")):
-            with self.assertRaises(OSError):
-                export_sharegpt([self.pair], path)
+        with (
+            patch("ecoalign_forge.runtime.journal.os.replace", side_effect=OSError("disk fault")),
+            self.assertRaises(OSError),
+        ):
+            export_sharegpt([self.pair], path)
         self.assertEqual(path.read_bytes(), previous)
         self.assertEqual(list(self.root.iterdir()), [path])
 
@@ -43,9 +45,11 @@ class ShareGPTAtomicExportTests(unittest.TestCase):
         path = self.root / "dataset_info.json"
         previous = b'{"previous":"complete"}\n'
         path.write_bytes(previous)
-        with patch("ecoalign_forge.runtime.journal.os.replace", side_effect=OSError("disk fault")):
-            with self.assertRaises(OSError):
-                export_dataset_info(self.root)
+        with (
+            patch("ecoalign_forge.runtime.journal.os.replace", side_effect=OSError("disk fault")),
+            self.assertRaises(OSError),
+        ):
+            export_dataset_info(self.root)
         self.assertEqual(path.read_bytes(), previous)
         self.assertEqual(list(self.root.iterdir()), [path])
 
@@ -55,11 +59,14 @@ class ShareGPTAtomicExportTests(unittest.TestCase):
             lambda: export_dataset_info(self.root),
         ):
             with self.subTest(export=export):
-                with patch(
-                    "ecoalign_forge.runtime.journal.os.replace", side_effect=OSError("disk fault")
+                with (
+                    patch(
+                        "ecoalign_forge.runtime.journal.os.replace",
+                        side_effect=OSError("disk fault"),
+                    ),
+                    self.assertRaises(OSError),
                 ):
-                    with self.assertRaises(OSError):
-                        export()
+                    export()
                 self.assertEqual(list(self.root.iterdir()), [])
 
     def test_encoding_failure_preserves_previous_exports(self):
