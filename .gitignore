@@ -38,3 +38,6 @@ docs/promotion*
 .coverage
 htmlcov/
 .ruff_cache/
+
+# Private atomic-export stages can remain after SIGKILL; never commit their contents.
+.atomic-*/

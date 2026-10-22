@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import contextlib
+import errno
 import hashlib
 import json
 import os
 import sqlite3
+import stat
+import sys
+import tempfile
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -49,22 +53,159 @@ def transaction(db):
         raise
 
 
-def atomic_write(path: Path, text: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(path.name + f".{os.getpid()}.tmp")
+_ACCESS_ACL = "system.posix_acl_access"
+_ACL_UNSUPPORTED = object()
+
+
+def _access_acl(path_or_fd):
+    """Read Linux POSIX access ACLs where the filesystem supports them."""
+    if sys.platform != "linux" or not hasattr(os, "getxattr"):
+        return _ACL_UNSUPPORTED
+    options = {} if isinstance(path_or_fd, int) else {"follow_symlinks": False}
     try:
-        with temporary.open("w", encoding="utf-8") as f:
-            f.write(text)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(temporary, path)
-        fd = os.open(path.parent, os.O_RDONLY)
+        return os.getxattr(path_or_fd, _ACCESS_ACL, **options)
+    except OSError as exc:
+        if exc.errno == errno.ENODATA:
+            return None
+        if exc.errno == errno.ENOTSUP:
+            return _ACL_UNSUPPORTED
+        raise
+
+
+def _restore_access_acl(fd, acl):
+    if acl is _ACL_UNSUPPORTED:
+        # Unsupported is not evidence that an ACL is absent. Only ordinary
+        # mode/owner/group preservation is verified on this filesystem/API.
+        return
+    if not hasattr(os, "setxattr"):
+        if acl is not None:
+            raise OSError(errno.ENOTSUP, "Cannot preserve export access ACL")
+        return
+    if acl is not None:
+        os.setxattr(fd, _ACCESS_ACL, acl)
+    else:
+        # Do not give an existing target new named-user/group permissions from
+        # the temporary file's directory default ACL.
         try:
-            os.fsync(fd)
+            os.removexattr(fd, _ACCESS_ACL)
+        except OSError as exc:
+            if exc.errno != errno.ENODATA:
+                raise
+
+
+def _cleanup_atomic(stage, stage_fd, descriptor, candidate_created):
+    """Remove only this writer's files; never hide the original failure."""
+    primary_error = sys.exc_info()[0] is not None
+    cleanup_error = None
+    actions = []
+    if descriptor is not None:
+        actions.append(lambda: os.close(descriptor))
+    if stage_fd is not None:
+        if candidate_created:
+            actions.append(lambda: os.unlink("content", dir_fd=stage_fd))
+        actions.append(lambda: os.close(stage_fd))
+    actions.append(stage.rmdir)
+    for action in actions:
+        try:
+            action()
+        except FileNotFoundError:
+            pass
+        except OSError as exc:
+            if cleanup_error is None:
+                cleanup_error = exc
+    if cleanup_error is not None and not primary_error:
+        raise cleanup_error
+
+
+@contextlib.contextmanager
+def atomic_writer(path: Path):
+    """Stream an ordinary-file replacement inside a private sibling directory.
+
+    The stage blocks traversal by other unprivileged UIDs, including before the
+    candidate is opened. It does not isolate same-UID or privileged processes.
+    Capture the OS's 0666/umask/default-ACL creation policy before restricting the
+    candidate. Existing regular single-link files retain owner/group, ordinary
+    mode and supported Linux POSIX access ACLs; new files restore creation policy.
+    Special-mode targets are rejected. Other platform ACLs, timestamps, security
+    labels, unrelated xattrs and inode/hardlink identity are not preserved.
+
+    Pre-replace failure preserves the old file. Once replace succeeds the complete
+    new file is visible, even if stage cleanup or parent-directory fsync fails;
+    this is an atomic single-file publication, not a multi-file transaction or CAS.
+    """
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    # mkdir(0700) preserves inherited SGID/default ACL policy. Do not chmod the
+    # stage afterward: that would change the policy inherited by new exports.
+    stage = Path(tempfile.mkdtemp(prefix=".atomic-", dir=path.parent))
+    stage_fd = descriptor = None
+    candidate_created = False
+    try:
+        stage_fd = os.open(stage, os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0))
+        if stat.S_IMODE(os.fstat(stage_fd).st_mode) & 0o777 != 0o700:
+            raise PermissionError("Export staging directory is not private and owner-accessible")
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+        descriptor = os.open("content", flags, 0o666, dir_fd=stage_fd)
+        candidate_created = True
+        created = os.fstat(descriptor)
+        created_acl = _access_acl(descriptor)
+        os.fchmod(descriptor, created.st_mode & 0o600)
+        stream = os.fdopen(descriptor, "w", encoding="utf-8")
+        descriptor = None  # The stream now owns and closes the descriptor.
+        f = stream
+        try:
+            yield f
+            f.flush()
+            try:
+                previous = path.lstat()
+            except FileNotFoundError:
+                previous, acl = created, created_acl
+            else:
+                if (
+                    not stat.S_ISREG(previous.st_mode)
+                    or previous.st_mode & 0o7000
+                    or previous.st_nlink != 1
+                ):
+                    raise ValueError(
+                        "Atomic export requires a regular single-link target without special mode bits"
+                    )
+                acl = _access_acl(path)
+            current = os.fstat(f.fileno())
+            if (current.st_uid, current.st_gid) != (previous.st_uid, previous.st_gid):
+                os.fchown(f.fileno(), previous.st_uid, previous.st_gid)
+            if acl is None:
+                _restore_access_acl(f.fileno(), None)
+            os.fchmod(f.fileno(), previous.st_mode & 0o777)
+            if acl is not None:
+                _restore_access_acl(f.fileno(), acl)
+            restored = os.fstat(f.fileno())
+            if (
+                (restored.st_uid, restored.st_gid) != (previous.st_uid, previous.st_gid)
+                or stat.S_IMODE(restored.st_mode) != (previous.st_mode & 0o777)
+                or _access_acl(f.fileno()) != acl
+            ):
+                raise OSError("Cannot preserve export file access metadata")
+            os.fsync(f.fileno())
         finally:
-            os.close(fd)
+            if sys.exc_info()[0] is not None:
+                with contextlib.suppress(Exception):
+                    stream.close()
+            else:
+                stream.close()
+        os.replace("content", path, src_dir_fd=stage_fd)
     finally:
-        temporary.unlink(missing_ok=True)
+        _cleanup_atomic(stage, stage_fd, descriptor, candidate_created)
+    fd = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
+def atomic_write(path: Path, text: str) -> None:
+    """Compatibility wrapper for callers that already hold serialized text."""
+    with atomic_writer(path) as stream:
+        stream.write(text)
 
 
 class RunBusyError(RuntimeError):
