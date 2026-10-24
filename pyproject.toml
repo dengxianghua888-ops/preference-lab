@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ecoalign-forge"
-version = "0.3.0a2"
+version = "0.4.0a1"
 description = "Policy-driven preference data with source evidence, resumable runs and TRL/ShareGPT exports."
 readme = "README.md"
 license = "Apache-2.0"
@@ -32,12 +32,13 @@ dependencies = [
 
 [project.optional-dependencies]
 dashboard = [
-    "streamlit>=1.38.0",
+    "streamlit>=1.64.0,<2",
     "plotly>=5.22.0",
     "streamlit-autorefresh>=1.0.1",
     "pandas>=2.1.0",
 ]
 dev = [
+    "mypy>=1.11",
     "hatchling>=1.25.0",
     "krippendorff==0.8.2",
     "pytest>=8.0.0",
@@ -62,6 +63,7 @@ include = [
     "/scripts",
     "/docs",
     "/CHANGELOG.md",
+    "/CONTRIBUTING.md",
     "/README.md",
     "/README_zh.md",
     "/LICENSE",
@@ -98,3 +100,8 @@ known-first-party = ["ecoalign_forge"]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 addopts = "-v --tb=short"
+
+[tool.mypy]
+files = ["src/ecoalign_forge/workbench"]
+follow_imports = "silent"
+check_untyped_defs = true

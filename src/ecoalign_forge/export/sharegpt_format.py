@@ -19,9 +19,10 @@ from pathlib import Path
 
 from ecoalign_forge.export.trl_format import prompt_messages
 from ecoalign_forge.schemas.dpo import DPO_Pair
+from ecoalign_forge.schemas.kernel import PreferencePair
 
 
-def to_sharegpt_dict(pair: DPO_Pair) -> dict:
+def to_sharegpt_dict(pair: DPO_Pair | PreferencePair) -> dict:
     """将单条 DPO_Pair 转换为 ShareGPT 对话格式。"""
     return {
         "conversations": [

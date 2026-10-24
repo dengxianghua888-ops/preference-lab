@@ -1,33 +1,34 @@
 # Contributing
 
-Use Python 3.11 or 3.12 on macOS/Linux. From a source checkout:
+Use Python 3.11 or 3.12 on macOS/Linux. Clone, create a virtual environment and run:
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
 python -m pip install -e '.[dev,dashboard]'
 python -m pytest tests -q
-ruff check .
-python -m hatchling build
+python -m ruff check .
+make type-check
+python scripts/accept_iteration_c.py --output /tmp/ecoalign-c
 ```
 
-Tests block external model requests. Keep reproductions deterministic and never
-commit keys, provider responses containing personal data, or `.env` files.
+Run formatter checks on the files you changed; do not reformat unrelated legacy
+code. The type check covers the C workbench package, including its untyped function
+bodies; it does not claim that the entire historical codebase is strictly typed.
 
-Report the exact commit/version, Python/OS, command, expected/observed behavior,
-exit code and a redacted minimal reproduction. The recorded demo's exit 3 is
-expected: four cases require unavailable external evidence.
+Tests block external LLM calls. Do not add secrets, real customer text or provider
+responses to fixtures. Add a failing contract regression for behavioral changes:
+review revisions, evidence gates, counts, mode separation and immutable exports are
+public contracts. API mistakes must fail explicitly, not silently drop options.
 
-For a rule change, provide a declarative PolicyPack plus source/expected-decision
-fixtures, evidence requirements, exceptions and boundary cases. Do not execute
-arbitrary code from a rule pack. For a code change, add a focused regression when
-behavior changes, run relevant tests and check changed-file formatting. Do not
-reformat unrelated files.
+Describe the concrete problem, resulting behavior, compatibility impact and actual
+verification in your PR. Preserve F01–F14 IDs in docs/review-findings.csv; mark only
+verified scope complete. Keep model quality, browser checks, human acceptance and
+training results distinct. New model/network integrations need controlled test
+doubles and cost/unknown-request accounting before any live validation.
 
-Use a scoped branch and PR; describe the user-visible change and actual validation.
-The C workbench is an open preview PR, not a default-branch API. Coordinate changes
-that touch its shared contracts and do not use automated fixtures as first-user
-acceptance. See [project status](docs/project-status.md).
+For bugs, provide version/commit, Python/OS, a redacted reproducer, expected/actual
+behavior, run state and relevant hashes. Never send credentials. Report suspected
+credential exposure privately through GitHub security reporting when available;
+do not publish the secret in an issue.
 
-Dataset licensing is separate from this repository's code license. Please include
-source permissions and avoid real personal information in example data.
+See [release gates](docs/releasing.md), [C contracts](docs/iteration-c-migration.md)
+and [first-user protocol](docs/first-user-acceptance.md).

@@ -12,11 +12,6 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ━━ Autorefresh ━━
-from streamlit_autorefresh import st_autorefresh
-
-st_autorefresh(interval=5000, limit=None, key="dashboard_autorefresh")
-
 # ━━ Theme ━━
 from dashboard.components.theme import inject_css
 
@@ -36,6 +31,11 @@ if storage == "新内核运行":
 
     render_kernel(mode)
     st.stop()
+
+# Historical monitoring is read-only; only this surface may refresh automatically.
+from streamlit_autorefresh import st_autorefresh
+
+st_autorefresh(interval=5000, limit=None, key="dashboard_autorefresh")
 
 snap = load_snapshot(mode)
 
