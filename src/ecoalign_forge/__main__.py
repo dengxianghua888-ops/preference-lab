@@ -70,7 +70,7 @@ def main() -> None:
     pause = commands.add_parser("pause", help="Pause an active run after its current batch")
     pause.add_argument("run_dir", type=Path)
     argv = sys.argv[1:]
-    if not argv or argv[0].startswith("--"):
+    if not argv or (argv[0].startswith("--") and argv[0] != "--help"):
         argv = ["run", *argv]
     args = parser.parse_args(argv)
 
