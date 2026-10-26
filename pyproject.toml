@@ -70,6 +70,7 @@ include = [
     "/guidelines.md",
     "/Makefile",
     "/.env.example",
+    "/.streamlit/config.toml",
     "/pyproject.toml",
 ]
 

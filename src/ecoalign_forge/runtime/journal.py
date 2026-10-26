@@ -3,14 +3,19 @@
 from __future__ import annotations
 
 import contextlib
+import errno
 import hashlib
 import json
 import os
 import sqlite3
+import stat
+import sys
+import tempfile
 import time
 from collections.abc import Callable
 from pathlib import Path
 
+from ecoalign_forge.runtime.accounting import BUDGET_KEY, adjust_budget, empty_budget
 from ecoalign_forge.schemas.kernel import KernelCounts, canonical, digest
 
 SCHEMA_VERSION = 2
@@ -48,22 +53,163 @@ def transaction(db):
         raise
 
 
-def atomic_write(path: Path, text: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(path.name + f".{os.getpid()}.tmp")
+_ACCESS_ACL = "system.posix_acl_access"
+_ACL_UNSUPPORTED = object()
+
+
+def _access_acl(path_or_fd):
+    """Read Linux POSIX access ACLs where the filesystem supports them."""
+    if sys.platform != "linux" or not hasattr(os, "getxattr"):
+        return _ACL_UNSUPPORTED
+    options = {} if isinstance(path_or_fd, int) else {"follow_symlinks": False}
     try:
-        with temporary.open("w", encoding="utf-8") as f:
-            f.write(text)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(temporary, path)
-        fd = os.open(path.parent, os.O_RDONLY)
+        return os.getxattr(path_or_fd, _ACCESS_ACL, **options)
+    except OSError as exc:
+        if exc.errno == errno.ENODATA:
+            return None
+        if exc.errno == errno.ENOTSUP:
+            return _ACL_UNSUPPORTED
+        raise
+
+
+def _restore_access_acl(fd, acl):
+    if acl is _ACL_UNSUPPORTED:
+        # Unsupported is not evidence that an ACL is absent. Only ordinary
+        # mode/owner/group preservation is verified on this filesystem/API.
+        return
+    if not hasattr(os, "setxattr"):
+        if acl is not None:
+            raise OSError(errno.ENOTSUP, "Cannot preserve export access ACL")
+        return
+    if acl is not None:
+        os.setxattr(fd, _ACCESS_ACL, acl)
+    else:
+        # Do not give an existing target new named-user/group permissions from
+        # the temporary file's directory default ACL.
         try:
-            os.fsync(fd)
+            os.removexattr(fd, _ACCESS_ACL)
+        except OSError as exc:
+            if exc.errno != errno.ENODATA:
+                raise
+
+
+def _cleanup_atomic(stage, stage_fd, descriptor, candidate_created):
+    """Remove only this writer's files; never hide the original failure."""
+    primary_error = sys.exc_info()[0] is not None
+    cleanup_error = None
+    actions = []
+    if descriptor is not None:
+        actions.append(lambda: os.close(descriptor))
+    if stage_fd is not None:
+        if candidate_created:
+            actions.append(lambda: os.unlink("content", dir_fd=stage_fd))
+        actions.append(lambda: os.close(stage_fd))
+    actions.append(stage.rmdir)
+    for action in actions:
+        try:
+            action()
+        except FileNotFoundError:
+            pass
+        except OSError as exc:
+            if cleanup_error is None:
+                cleanup_error = exc
+    if cleanup_error is not None and not primary_error:
+        raise cleanup_error
+
+
+@contextlib.contextmanager
+def atomic_writer(path: Path):
+    """Stream an ordinary-file replacement inside a private sibling directory.
+
+    The stage blocks traversal by other unprivileged UIDs, including before the
+    candidate is opened. It does not isolate same-UID or privileged processes.
+    Capture the OS's 0666/umask/default-ACL creation policy before restricting the
+    candidate. Existing regular single-link files retain owner/group, ordinary
+    mode and supported Linux POSIX access ACLs; new files restore creation policy.
+    Special-mode targets are rejected. Other platform ACLs, timestamps, security
+    labels, unrelated xattrs and inode/hardlink identity are not preserved.
+
+    Pre-replace failure preserves the old file. Once replace succeeds the complete
+    new file is visible, even if stage cleanup or parent-directory fsync fails;
+    this is an atomic single-file publication, not a multi-file transaction or CAS.
+    """
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    # mkdir(0700) preserves inherited SGID/default ACL policy. Do not chmod the
+    # stage afterward: that would change the policy inherited by new exports.
+    stage = Path(tempfile.mkdtemp(prefix=".atomic-", dir=path.parent))
+    stage_fd = descriptor = None
+    candidate_created = False
+    try:
+        stage_fd = os.open(stage, os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0))
+        if stat.S_IMODE(os.fstat(stage_fd).st_mode) & 0o777 != 0o700:
+            raise PermissionError("Export staging directory is not private and owner-accessible")
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+        descriptor = os.open("content", flags, 0o666, dir_fd=stage_fd)
+        candidate_created = True
+        created = os.fstat(descriptor)
+        created_acl = _access_acl(descriptor)
+        os.fchmod(descriptor, created.st_mode & 0o600)
+        stream = os.fdopen(descriptor, "w", encoding="utf-8")
+        descriptor = None  # The stream now owns and closes the descriptor.
+        f = stream
+        try:
+            yield f
+            f.flush()
+            try:
+                previous = path.lstat()
+            except FileNotFoundError:
+                previous, acl = created, created_acl
+            else:
+                if (
+                    not stat.S_ISREG(previous.st_mode)
+                    or previous.st_mode & 0o7000
+                    or previous.st_nlink != 1
+                ):
+                    raise ValueError(
+                        "Atomic export requires a regular single-link target without special mode bits"
+                    )
+                acl = _access_acl(path)
+            current = os.fstat(f.fileno())
+            if (current.st_uid, current.st_gid) != (previous.st_uid, previous.st_gid):
+                os.fchown(f.fileno(), previous.st_uid, previous.st_gid)
+            if acl is None:
+                _restore_access_acl(f.fileno(), None)
+            os.fchmod(f.fileno(), previous.st_mode & 0o777)
+            if acl is not None:
+                _restore_access_acl(f.fileno(), acl)
+            restored = os.fstat(f.fileno())
+            if (
+                (restored.st_uid, restored.st_gid) != (previous.st_uid, previous.st_gid)
+                or stat.S_IMODE(restored.st_mode) != (previous.st_mode & 0o777)
+                or _access_acl(f.fileno()) != acl
+            ):
+                raise OSError("Cannot preserve export file access metadata")
+            os.fsync(f.fileno())
         finally:
-            os.close(fd)
+            if sys.exc_info()[0] is not None:
+                with contextlib.suppress(Exception):
+                    stream.close()
+            else:
+                stream.close()
+        os.replace("content", path, src_dir_fd=stage_fd)
     finally:
-        temporary.unlink(missing_ok=True)
+        _cleanup_atomic(stage, stage_fd, descriptor, candidate_created)
+    fd = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(fd)
+    finally:
+        if sys.exc_info()[0] is not None:
+            with contextlib.suppress(OSError):
+                os.close(fd)
+        else:
+            os.close(fd)
+
+
+def atomic_write(path: Path, text: str) -> None:
+    """Compatibility wrapper for callers that already hold serialized text."""
+    with atomic_writer(path) as stream:
+        stream.write(text)
 
 
 class RunBusyError(RuntimeError):
@@ -75,14 +221,20 @@ class Journal:
     def readonly(cls, path):
         obj = cls.__new__(cls)
         obj.path = Path(path)
+        obj._readonly = True
         obj.db = sqlite3.connect(
             (obj.path / "run.sqlite3").resolve().as_uri() + "?mode=ro", uri=True
         )
         obj.db.row_factory = sqlite3.Row
+        version = obj.get("schema_version")
+        if version is not None and version != SCHEMA_VERSION:
+            obj.close()
+            raise ValueError("Unsupported checkpoint schema version")
         return obj
 
     def __init__(self, path: Path, *, hook: Callable | None = None):
         self.path = Path(path)
+        self._readonly = False
         self.path.mkdir(parents=True, exist_ok=True)
         self.hook = hook or (lambda *_: None)
         self.db = connect(self.path / "run.sqlite3")
@@ -107,6 +259,18 @@ class Journal:
             self.close()
             raise ValueError("Unsupported checkpoint schema version")
         self.set("schema_version", SCHEMA_VERSION)
+        # Invalidate the projection even if an older writer or a maintenance tool
+        # changes authoritative rows. Current writes refresh it in the same transaction.
+        self.db.executescript(f"""
+            CREATE TRIGGER IF NOT EXISTS budget_insert AFTER INSERT ON attempts
+            BEGIN DELETE FROM meta WHERE key='{BUDGET_KEY}'; END;
+            CREATE TRIGGER IF NOT EXISTS budget_update AFTER UPDATE OF cost,reservation,usage ON attempts
+            BEGIN DELETE FROM meta WHERE key='{BUDGET_KEY}'; END;
+            CREATE TRIGGER IF NOT EXISTS budget_delete AFTER DELETE ON attempts
+            BEGIN DELETE FROM meta WHERE key='{BUDGET_KEY}'; END;
+        """)
+        with transaction(self.db):
+            self.budget_snapshot()
 
     def close(self):
         self.db.close()
@@ -240,8 +404,24 @@ class Journal:
         )
         return [dict(r) for r in self.db.execute(query, (request_id,) if request_id else ())]
 
+    def budget_snapshot(self):
+        totals = self.get(BUDGET_KEY)
+        if totals is None:
+            if not self._readonly and not self.db.in_transaction:
+                with transaction(self.db):
+                    return self.budget_snapshot()
+            # One narrow scan for legacy/invalidated journals. No result blobs,
+            # sorting or float coercion; readonly inspection never modifies files.
+            totals = empty_budget()
+            for row in self.db.execute("SELECT cost,reservation,usage FROM attempts"):
+                adjust_budget(totals, row)
+            if not self._readonly:
+                self.set(BUDGET_KEY, totals)
+        return totals
+
     def start_attempt(self, request_id, reservation):
         with transaction(self.db):
+            totals = self.budget_snapshot()
             number = (
                 self.db.execute(
                     "SELECT count(*) FROM attempts WHERE request_id=?", (request_id,)
@@ -253,6 +433,8 @@ class Journal:
                 "INSERT INTO attempts(id,request_id,number,state,reservation,started) VALUES(?,?,?,'in_flight',?,?)",
                 (attempt_id, request_id, number, str(reservation), time.time()),
             )
+            adjust_budget(totals, dict(reservation=str(reservation), cost=None, usage=None))
+            self.set(BUDGET_KEY, totals)
             self.db.execute("UPDATE requests SET state='in_flight' WHERE id=?", (request_id,))
             self.event("request_intent", {"request_id": request_id, "attempt_id": attempt_id})
         self.hook("request_intent_committed", {"request_id": request_id, "attempt_id": attempt_id})
@@ -268,6 +450,21 @@ class Journal:
 
     def finish_attempt(self, attempt_id, state, *, error=None, cost=None, usage=None, parsed=None):
         with transaction(self.db):
+            totals = self.budget_snapshot()
+            previous = self.db.execute(
+                "SELECT cost,reservation,usage,request_id FROM attempts WHERE id=?", (attempt_id,)
+            ).fetchone()
+            if previous is None:
+                raise ValueError("Unknown attempt ID")
+            adjust_budget(totals, previous, -1)
+            adjust_budget(
+                totals,
+                dict(
+                    reservation=previous["reservation"],
+                    cost=str(cost) if cost is not None else None,
+                    usage=canonical(usage) if usage is not None else None,
+                ),
+            )
             self.db.execute(
                 "UPDATE attempts SET state=?,error=?,cost=?,usage=?,ended=? WHERE id=?",
                 (
@@ -279,9 +476,8 @@ class Journal:
                     attempt_id,
                 ),
             )
-            req = self.db.execute(
-                "SELECT request_id FROM attempts WHERE id=?", (attempt_id,)
-            ).fetchone()[0]
+            self.set(BUDGET_KEY, totals)
+            req = previous["request_id"]
             self.db.execute(
                 "UPDATE requests SET state=?,parsed=? WHERE id=?",
                 (state, canonical(parsed) if parsed is not None else None, req),
@@ -305,7 +501,12 @@ class Journal:
                 self.event("interrupted_requests", {"attempt_ids": [r["id"] for r in rows]})
 
     def unknown(self):
-        return [a for a in self.attempts() if a["state"] == "unknown" and a["resolution"] is None]
+        return [
+            dict(row)
+            for row in self.db.execute(
+                "SELECT * FROM attempts WHERE state='unknown' AND resolution IS NULL ORDER BY started,number"
+            )
+        ]
 
     def resolve_unknown(self, choices):
         pending = {a["id"]: a for a in self.unknown()}

@@ -1,0 +1,21 @@
+{
+  "cases": [
+    {
+      "case_id": "example-a",
+      "content": "An ordinary weather note."
+    },
+    {
+      "case_id": "example-b",
+      "content": "This case requires unavailable external evidence."
+    },
+    {
+      "case_id": "example-c",
+      "content": "A case without a candidate result."
+    }
+  ],
+  "scorer_spec": {
+    "name": "exact-behavior-fields",
+    "version": 1
+  },
+  "source_kind": "unlabeled"
+}

@@ -1,4 +1,4 @@
-# EcoAlign-Forge
+# 观衡 · Preference Lab
 
 **把内容审核规则，变成可追溯的偏好数据。**
 
@@ -8,7 +8,7 @@
 
 ## 适合用在哪里
 
-| 你的任务 | 用 EcoAlign-Forge 做什么 |
+| 你的任务 | 用 Preference Lab 做什么 |
 | --- | --- |
 | 探索一套新审核规则 | 围绕规则标签生成案例，检查分歧与无法确认的情况。 |
 | 排查误杀或漏判 | 从候选判决回到原文、精确证据位置和当时使用的规则。 |
@@ -45,8 +45,8 @@ flowchart LR
 使用 **Python 3.11 / 3.12**，支持 macOS/Linux。安装依赖需要联网；预录演示**不调用外部模型，不需要 API Key**。
 
 ```bash
-git clone https://github.com/dengxianghua888-ops/ecoalign-forge.git
-cd ecoalign-forge
+git clone https://github.com/dengxianghua888-ops/preference-lab.git
+cd preference-lab
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e .
@@ -57,7 +57,7 @@ python -m ecoalign_forge run --demo --num-samples 5
 
 命令会打印 run ID 和输出路径。运行记录位于 `data/demo/runs/`，导出位于 `data/datasets/demo/`。打开 `pairs.jsonl` 查看接受的偏好对，打开 `manifest.json` 核对策略与文件哈希。
 
-也可从 [GitHub Releases](https://github.com/dengxianghua888-ops/ecoalign-forge/releases) 下载 wheel 与校验和安装；目前不发布 PyPI。受影响的 `0.3.0a1` 已撤回，请使用修正后的源码或后续版本。
+也可从 [GitHub Releases](https://github.com/dengxianghua888-ops/preference-lab/releases) 下载 wheel 与校验和安装；目前不发布 PyPI。受影响的 `0.3.0a1` 已撤回，请使用修正后的源码或后续版本。
 
 ## 为什么采用这套流程
 
@@ -97,15 +97,28 @@ python -m pip install -e '.[dashboard]'
 python -m streamlit run dashboard/app.py --server.port 8501
 ```
 
-选择 `demo` 与实际 run，查看标签、最终动作、失败案例和预算预留。默认分支提供运行查看；接受、改判、弃权及复核数据集功能位于 [C 预览分支](https://github.com/dengxianghua888-ops/ecoalign-forge/blob/codex/iteration-c/docs/first-user-acceptance.md)，工作台尚未发布。
+请从仓库根目录启动，让 Streamlit 加载 `.streamlit/config.toml`。
+Dashboard 当前支持项目暗色主题，尚不支持自定义浅色主题。
+
+选择 `demo` 与实际 run，查看标签、最终动作、失败案例和预算预留。默认分支提供运行查看；接受、改判、弃权及复核数据集功能位于 [C 预览分支](https://github.com/dengxianghua888-ops/preference-lab/blob/codex/iteration-c/docs/first-user-acceptance.md)，工作台尚未发布。
 
 ## 文档与参与
 
 - [文档导航](docs/README.md)：配置、恢复、导出格式与兼容说明。
 - [项目状态](docs/project-status.md)：已发布、已撤回及预览版本。
 - [贡献指南](CONTRIBUTING.md)：运行检查、提交可复现问题或规则示例。
-- [更新记录](CHANGELOG.md) · [问题反馈](https://github.com/dengxianghua888-ops/ecoalign-forge/issues)
+- [更新记录](CHANGELOG.md) · [问题反馈](https://github.com/dengxianghua888-ops/preference-lab/issues)
 
 代码使用 [Apache-2.0](LICENSE)。数据许可未声明时为**未指定**，不自动继承代码许可证。用于训练或评估前，需要按实际任务复核候选数据。
 
 如果项目对你有帮助，欢迎 Star 收藏与支持；接收版本通知请使用 **Watch → Custom → Releases**。
+
+## 离线逐例行为比较
+
+新增 `eval-freeze`、`eval-snapshot` 和 `compare`：冻结评测题目、评分规则与参考标签身份，
+只读比较两份结果，分别解释缺失、弃权（abstain）、失败及标签／证据变化。
+旧运行没有固定评测身份时只展示可核实的内容重叠，不能视为同一评测实验。
+候选标签不会被当成人工准确率，也不会自动给出“质量提升”结论。
+完整命令、样例及边界见[离线比较说明](docs/offline-comparison.md)。
+
+`inspect` 新增逐请求尝试的持久响应、未决预留及远端结果边界解释，不调用模型、不迁移日志。未知远端结果仍不能保证外部调用恰好一次。[只读恢复检查说明 →](docs/recovery-inspection.md)

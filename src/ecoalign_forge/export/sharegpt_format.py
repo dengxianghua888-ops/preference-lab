@@ -50,12 +50,12 @@ def export_sharegpt(
     Returns:
         实际写入的文件路径
     """
-    path = Path(output_path)
-    path.parent.mkdir(parents=True, exist_ok=True)
+    from ecoalign_forge.runtime.journal import atomic_writer
 
+    path = Path(output_path)
     records = [to_sharegpt_dict(pair) for pair in pairs]
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(records, f, ensure_ascii=False, indent=2)
+    with atomic_writer(path) as stream:
+        json.dump(records, stream, ensure_ascii=False, indent=2)
 
     return path
 
@@ -76,8 +76,9 @@ def export_dataset_info(
     Returns:
         dataset_info.json 文件路径
     """
+    from ecoalign_forge.runtime.journal import atomic_writer
+
     output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
 
     info = {
         dataset_name: {
@@ -93,7 +94,7 @@ def export_dataset_info(
     }
 
     info_path = output_dir / "dataset_info.json"
-    with open(info_path, "w", encoding="utf-8") as f:
-        json.dump(info, f, ensure_ascii=False, indent=2)
+    with atomic_writer(info_path) as stream:
+        json.dump(info, stream, ensure_ascii=False, indent=2)
 
     return info_path

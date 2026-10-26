@@ -1,0 +1,43 @@
+{
+  "identity": {
+    "eval_set_sha256": "266c98b954a7b4a441f8314b1f9c924e02f101d2d29497a543a984cc1bb50c00",
+    "scorer_spec_sha256": "42bc965b0e76df27bdca41823815d87027b88f12f10fd83b48de3e3f27e87cfa",
+    "reference_labels_sha256": "e5891ab8fe58f6f36a12afa5f05277da0235d55c2b0e786fa16c62a1bb0601d6"
+  },
+  "provenance": {
+    "fixture": "synthetic-comparison-example-v1",
+    "not_a_model_run": true
+  },
+  "records": [
+    {
+      "case_id": "example-a",
+      "source_hash": "44ff1925aa658892e313a5b52f1a48c8a2ae51e19549d3b14803c2158228a6dd",
+      "status": "accepted",
+      "action": "allow",
+      "labels": {
+        "risk": "low"
+      },
+      "evidence": []
+    },
+    {
+      "case_id": "example-b",
+      "source_hash": "5903b48e20466aaceff695ebec2bb18eccb8bf604892a7208ded6b35877fba82",
+      "status": "accepted",
+      "action": "allow",
+      "labels": {
+        "risk": "low"
+      },
+      "evidence": []
+    },
+    {
+      "case_id": "example-c",
+      "source_hash": "7df160e2d9d7719efa28e3971b91285db8bfb1eb8c15b3cada4a90f164b1ce6d",
+      "status": "accepted",
+      "action": "allow",
+      "labels": {
+        "risk": "low"
+      },
+      "evidence": []
+    }
+  ]
+}

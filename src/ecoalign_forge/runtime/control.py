@@ -4,15 +4,19 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 import os
 import random
 import time
+from datetime import UTC
 from decimal import Decimal
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 from uuid import uuid4
 
 from pydantic import BaseModel
 
+from ecoalign_forge.runtime.accounting import decimal_add
 from ecoalign_forge.runtime.journal import Journal, connect, transaction
 from ecoalign_forge.runtime.prompts import BatchContractError
 from ecoalign_forge.schemas.kernel import GenerationResult, RunConfig, canonical
@@ -32,6 +36,22 @@ class TransportError(Exception):
     def __init__(self, kind: str, code: int | None = None, retry_after: float = 0):
         super().__init__(f"{kind}:{code}")
         self.kind, self.code, self.retry_after = kind, code, retry_after
+
+
+def _retry_after_seconds(value):
+    """Accept delay seconds or an HTTP-date without leaking provider header text."""
+    try:
+        seconds = float(value)
+    except (ValueError, TypeError):
+        try:
+            date = parsedate_to_datetime(value)
+            # Obsolete HTTP asctime dates omit the zone but still mean GMT.
+            if date.tzinfo is None:
+                date = date.replace(tzinfo=UTC)
+            seconds = date.timestamp() - time.time()
+        except (ValueError, TypeError, OverflowError, OSError):
+            return 0
+    return max(0, seconds) if math.isfinite(seconds) else 0
 
 
 def json_value(value):
@@ -114,32 +134,7 @@ class Quota:
 
 
 def budget_snapshot(journal: Journal):
-    estimated = Decimal(0)
-    reserved = Decimal(0)
-    unknown = 0
-    reported_usage = dict(prompt_tokens=0, completion_tokens=0, total_tokens=0)
-    usage_attempts = 0
-    for attempt in journal.attempts():
-        if attempt["usage"]:
-            usage_attempts += 1
-            for key, value in json.loads(attempt["usage"]).items():
-                if key in reported_usage:
-                    reported_usage[key] += value
-        if attempt["cost"] is None:
-            reserved += Decimal(attempt["reservation"])
-            unknown += 1
-        else:
-            estimated += Decimal(attempt["cost"])
-    return dict(
-        estimated_usd=str(estimated),
-        unresolved_reserved_usd=str(reserved),
-        total_committed_usd=str(estimated + reserved),
-        attempts=len(journal.attempts()),
-        attempts_without_usage_or_settlement=unknown,
-        actual_billed_usd=None,
-        supplier_reported_usage=reported_usage if usage_attempts else None,
-        attempts_with_usage=usage_attempts,
-    )
+    return journal.budget_snapshot()
 
 
 class LiteLLMTransport:
@@ -231,15 +226,18 @@ class LiteLLMTransport:
             else:
                 kind = "unknown"
             headers = getattr(getattr(exc, "response", None), "headers", {}) or {}
-            try:
-                retry_after = max(0, float(headers.get("retry-after", 0)))
-            except (ValueError, TypeError):
-                retry_after = 0
+            retry_after = _retry_after_seconds(headers.get("retry-after", 0))
             # Never persist arbitrary provider exception strings (they can contain credentials).
             raise TransportError(kind, code, retry_after) from exc
         finally:
             if stream is not None and hasattr(stream, "aclose"):
-                await stream.aclose()
+                # Cleanup is best effort: it must not replace a complete response or
+                # the classified generation error. External cancellation still propagates.
+                try:
+                    async with asyncio.timeout(min(1.0, config.stream_idle_timeout)):
+                        await stream.aclose()
+                except Exception:
+                    pass
 
 
 class RequestController:
@@ -301,7 +299,7 @@ class RequestController:
             spent = Decimal(budget_snapshot(self.journal)["total_committed_usd"])
             if (
                 self.config.max_run_cost is not None
-                and spent + reservation > self.config.max_run_cost
+                and decimal_add(spent, reservation) > self.config.max_run_cost
             ):
                 raise RunPausedError("budget_exhausted")
             number = len(self.journal.attempts(request_id)) + 1
@@ -314,7 +312,7 @@ class RequestController:
             spent = Decimal(budget_snapshot(self.journal)["total_committed_usd"])
             if (
                 self.config.max_run_cost is not None
-                and spent + reservation > self.config.max_run_cost
+                and decimal_add(spent, reservation) > self.config.max_run_cost
             ):
                 self.quota.release(lease_id)
                 raise RunPausedError("budget_exhausted")

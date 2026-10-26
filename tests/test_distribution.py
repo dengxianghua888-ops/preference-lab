@@ -58,6 +58,13 @@ def test_wheel_and_sdist_include_identical_handbook(distributions: tuple[Path, P
         resource = archive.extractfile(resources[0])
         assert resource is not None
         assert resource.read() == expected
+        # The source dashboard needs its native theme alongside the custom dark
+        # shell; source releases must keep the same startup configuration.
+        themes = [name for name in archive.getnames() if name.endswith("/.streamlit/config.toml")]
+        assert len(themes) == 1
+        theme = archive.extractfile(themes[0])
+        assert theme is not None
+        assert theme.read() == (_ROOT / ".streamlit/config.toml").read_bytes()
 
 
 def test_wheel_loads_resources_without_source_checkout(

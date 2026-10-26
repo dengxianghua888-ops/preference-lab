@@ -1,4 +1,4 @@
-# Iteration B migration (0.3.0a1)
+# Iteration B migration (0.3.0a2)
 
 ## Entry points and configuration
 
@@ -50,6 +50,16 @@ python -m ecoalign_forge export data/demo/runs/RUN_ID
 
 Inspect lists unknown attempt IDs. Unknown remote outcomes pause by default. Retry creates a new attempt and retains the old unresolved reservation; skip records an explicit exclusion from further attempts and marks the affected case failed. Saved complete responses are parsed locally first. Only increased budgets and extended deadlines are allowed; code fingerprint, prompt version, models, policy and schema must match. Resume restores the original data and dataset roots from its checkpoint; changing the shared quota root is refused.
 
+Budget checks read a constant-size, transactionally maintained Decimal projection. Attempts remain authoritative: old journals rebuild this projection once from cost/reservation/usage columns, and legacy writer changes invalidate it. Raw responses are not loaded for budget checks. Unknown attempts retain their reservation after either retry or skip; settlement and its projection commit or roll back together.
+
+New run manifests also record the Python implementation/version, SQLite version and key runtime distribution versions (request SDK, validation and tokenization included). Resume compares the effective environment before dispatch and lists changed fields. Restore the recorded environment or start a new run to retain strict reproducibility. If you deliberately accept an environment change, use:
+
+```bash
+python -m ecoalign_forge resume data/demo/runs/RUN_ID --allow-environment-change
+```
+
+The equivalent Python option is `allow_environment_change=True`. This records previous/current identities and the differences in a `resume_environment_revision` event, preserves the original manifest, and makes the accepted identity effective for later resumes. It does not waive code/template/policy checks, prove compatibility, or upgrade old source checkpoints. A missing environment identity is unknown, so it also requires explicit acceptance when all other identity checks pass. This is a targeted runtime fingerprint, not a complete transitive dependency lock or a guarantee against editable dependency changes.
+
 Counts rebuild from committed state:
 
 ```
@@ -60,6 +70,10 @@ accepted_cases + excluded_cases = completed
 Completed includes normal semantic exclusions. Failed/abstaining review is failed, not accepted. `no_signal` counts accepted cases without a pair. Historical counts default `in_progress=0`. Codes: completed 0, failed 1, arguments 2, partial_failed 3, paused 4, cancelled 130. Pauses distinguish unknown, budget and deadline. Saving failure cannot return success.
 
 Exports are immutable versions at `DATASETS_DIR/<mode>/<run_id>/<dataset_hash>/`. Temporary files and atomic replacement precede a manifest. No historical files are migrated or overwritten. `pairs.jsonl` is the provenance-rich authority view; TRL standard/conversational, ShareGPT, dataset_info, policy snapshot and a data card are projected views. The manifest hashes each file. Data license defaults to unspecified, independently of Apache-2.0 code licensing.
+
+The public ShareGPT and dataset-info exporters stream JSON into an exclusive file inside a private `.atomic-*` sibling directory, then publish one complete file with replacement. Existing ordinary single-link targets retain owner/group, ordinary permission bits and supported Linux POSIX access ACLs; new files retain the OS creation policy (umask and supported directory default ACLs). Unsafe target types, special mode bits and metadata that cannot be restored are rejected before replacement. This does not preserve inode/hardlink identity, timestamps, security labels, unrelated xattrs or non-Linux ACLs, and does not isolate same-UID or privileged processes. The two exports are separate publications, not a transaction across both files. A directory-fsync error after replacement reports failure even though the complete new file is already visible.
+
+Handled failures clean only the current writer's owned candidate and stage. A process kill can leave a private `.atomic-*` directory; it is ignored by Git, is never reused, and is not swept or deleted by a later run. Treat any retained contents as private run data when reviewing storage; do not add them to version control. No automatic garbage collector removes unknown directories or user files.
 
 ## Metrics and consumers
 

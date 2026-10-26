@@ -22,6 +22,7 @@ from ecoalign_forge.runtime.control import (
     RunPausedError,
     budget_snapshot,
 )
+from ecoalign_forge.runtime.identity import environment_differences, environment_identity
 from ecoalign_forge.runtime.journal import Journal, atomic_write, transaction
 from ecoalign_forge.runtime.prompts import (
     TEMPLATE_VERSION,
@@ -110,6 +111,7 @@ class SynthesisKernel:
             policy_hash=compiled.sha256,
             config=config.model_dump(mode="json"),
             code=code_identity(),
+            environment=environment_identity(),
             template_version=TEMPLATE_VERSION,
             created_at=time.time(),
         )
@@ -128,6 +130,7 @@ class SynthesisKernel:
         unknown_decisions: dict | None = None,
         max_run_cost: Decimal | None = None,
         extend_seconds: float = 0,
+        allow_environment_change: bool = False,
     ):
         path = Path(run_dir)
         if not (path / "run.sqlite3").is_file():
@@ -153,6 +156,17 @@ class SynthesisKernel:
                     raise ValueError(
                         "Code/template differs from checkpoint; resume requires the original version"
                     )
+                expected_environment = j.get("effective_environment", manifest.get("environment"))
+                current_environment = environment_identity()
+                differences = environment_differences(expected_environment, current_environment)
+                if differences and not allow_environment_change:
+                    raise ValueError(
+                        "Runtime environment differs from checkpoint: "
+                        + "; ".join(differences)
+                        + ". Restore the original environment, start a new run, or explicitly "
+                        "accept this change with allow_environment_change=True "
+                        "(CLI: --allow-environment-change). This does not waive code/template checks."
+                    )
                 compiled = compile_policy(PolicyPack.model_validate(manifest["policy"]))
                 if compiled.sha256 != manifest["policy_hash"]:
                     raise ValueError("Policy snapshot hash mismatch")
@@ -175,6 +189,17 @@ class SynthesisKernel:
                         j.event(
                             "resume_config_revision",
                             dict(updates=updates, extend_seconds=extend_seconds),
+                        )
+                if differences:
+                    with transaction(j.db):
+                        j.set("effective_environment", current_environment)
+                        j.event(
+                            "resume_environment_revision",
+                            dict(
+                                previous=expected_environment,
+                                current=current_environment,
+                                differences=differences,
+                            ),
                         )
                 j.recover_inflight()
                 j.resolve_unknown(unknown_decisions or {})
