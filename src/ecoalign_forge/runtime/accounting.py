@@ -3,9 +3,29 @@
 from __future__ import annotations
 
 import json
-from decimal import Decimal, localcontext
+from decimal import (
+    MAX_EMAX,
+    MIN_EMIN,
+    ROUND_HALF_EVEN,
+    Context,
+    Decimal,
+    Inexact,
+    InvalidOperation,
+    Overflow,
+    localcontext,
+)
 
 BUDGET_KEY = "budget_totals_v1"
+
+
+def _exact_context(precision):
+    return Context(
+        prec=precision,
+        rounding=ROUND_HALF_EVEN,
+        Emin=MIN_EMIN,
+        Emax=MAX_EMAX,
+        traps=[Inexact, InvalidOperation, Overflow],
+    )
 
 
 def decimal_add(left, right):
@@ -14,9 +34,31 @@ def decimal_add(left, right):
     if not left.is_finite() or not right.is_finite():
         raise ValueError("Budget amounts must be finite")
     exponent = min(left.as_tuple().exponent, right.as_tuple().exponent)
-    with localcontext() as ctx:
-        ctx.prec = max(28, max(left.adjusted(), right.adjusted()) - exponent + 2)
+    precision = max(28, max(left.adjusted(), right.adjusted()) - exponent + 2)
+    with localcontext(_exact_context(precision)):
         return left + right
+
+
+def token_cost(input_tokens, output_tokens, input_per_million, output_per_million):
+    """Compute the frozen token-price estimate without caller context rounding."""
+    rates = (Decimal(input_per_million), Decimal(output_per_million))
+    counts = (input_tokens, output_tokens)
+    if any(type(count) is not int or count < 0 for count in counts) or any(
+        not rate.is_finite() or rate < 0 for rate in rates
+    ):
+        raise ValueError("Token counts and prices must be finite and nonnegative")
+    # Each product needs at most the sum of its operand coefficient lengths.
+    # decimal_add increases this for the aligned sum. Use a fresh context so a
+    # host application's rounding, exponent bounds and traps cannot alter fees.
+    precision = 28
+    for count, rate in zip(counts, rates, strict=True):
+        digits = len(rate.as_tuple().digits) + len(Decimal(count).as_tuple().digits)
+        precision = max(precision, digits)
+    with localcontext(_exact_context(precision)):
+        total = decimal_add(input_tokens * rates[0], output_tokens * rates[1])
+        sign, digits, exponent = total.as_tuple()
+        # Dividing by 10**6 changes only the exponent; it must not round again.
+        return Decimal((sign, digits, exponent - 6))
 
 
 def empty_budget():

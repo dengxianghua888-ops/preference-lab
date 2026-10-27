@@ -16,7 +16,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel
 
-from ecoalign_forge.runtime.accounting import decimal_add
+from ecoalign_forge.runtime.accounting import decimal_add, token_cost
 from ecoalign_forge.runtime.journal import Journal, connect, transaction
 from ecoalign_forge.runtime.prompts import BatchContractError
 from ecoalign_forge.schemas.kernel import GenerationResult, RunConfig, canonical
@@ -254,10 +254,12 @@ class RequestController:
         price = self.config.prices[model.model]
         if estimated_input > price.max_input_tokens:
             raise RequestFailedError("Prompt exceeds explicit input token upper bound")
-        cost = (
-            price.max_input_tokens * price.input_per_million
-            + model.max_tokens * price.output_per_million
-        ) / Decimal(1000000)
+        cost = token_cost(
+            price.max_input_tokens,
+            model.max_tokens,
+            price.input_per_million,
+            price.output_per_million,
+        )
         return cost, price.max_input_tokens + model.max_tokens
 
     def cost(self, stage, result):
@@ -266,10 +268,12 @@ class RequestController:
         if not result.usage:
             return None
         price = self.config.prices[self.config.models[stage].model]
-        return (
-            result.usage["prompt_tokens"] * price.input_per_million
-            + result.usage["completion_tokens"] * price.output_per_million
-        ) / Decimal(1000000)
+        return token_cost(
+            result.usage["prompt_tokens"],
+            result.usage["completion_tokens"],
+            price.input_per_million,
+            price.output_per_million,
+        )
 
     async def call(self, request_id, stage, case_ids, messages, parser):
         payload = dict(stage=stage, messages=messages)

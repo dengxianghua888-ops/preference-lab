@@ -4,6 +4,7 @@
 
 - Budget checks read one constant-size projection row instead of loading, sorting and transferring all historical raw responses twice per snapshot.
 - New attempts and settlements update exact Decimal totals in the same SQLite transaction as their authoritative rows. No SQLite floating-point sums are used. Amount addition also avoids the ambient Decimal precision rounding away a small reservation.
+- Token-price multiplication, addition and per-million scaling also use exact arithmetic in an isolated context. A caller's Decimal precision, rounding, exponent limits or traps cannot lower a request reservation or settlement estimate. These remain frozen-price estimates, not provider invoices.
 - Unknown attempts keep their reservations even after explicit retry or skip. A saved response remains reserved until settlement; repeated settlement replaces, rather than duplicates, its contribution.
 - Older schema-2 journals rebuild the projection once from `cost`, `reservation` and `usage` only. Invalidation triggers cover older writers and direct attempt changes. Read-only inspection can compute a missing projection without writing it. Responses, requests and exports are unchanged.
 - New manifests record Python implementation/version, SQLite version and selected request, validation and tokenizer distribution versions. Resume blocks changed or missing identities by default and names the differing fields. An explicit `--allow-environment-change` / `allow_environment_change=True` choice preserves the original manifest and appends an auditable environment revision. Code/template/policy checks still apply.
@@ -27,5 +28,7 @@ The four budget reads per request are the two pre-dispatch budget gates, attempt
 ## Regression coverage
 
 `tests/test_runtime_accounting.py` covers exact long Decimal amounts under reduced context precision, reservation retention, repeated settlement, transaction rollback, read-only legacy inspection, invalidation/rebuild, and constant-row hot-path reads. Existing SIGKILL/recovery tests continue to exercise request/response/stage/export boundaries.
+
+`tests/test_token_cost_precision.py` covers long price coefficients, restrictive caller contexts, exact budget equality and refusal before dispatch, and reservation retention after explicitly skipping an unknown outcome. The tests use real local SQLite and a synthetic in-memory transport, never a paid model call.
 
 `tests/test_runtime_identity.py` covers manifest identity, missing distributions, dependency/Python drift, no new attempts on rejection, explicit audit events without rewriting the original manifest, repeat resumes in the accepted environment, missing legacy identity, CLI acceptance, and the source-identity guard remaining mandatory.
