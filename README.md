@@ -102,6 +102,8 @@ python -m streamlit run dashboard/app.py --server.port 8501
 ```
 
 Run this command from the repository root so Streamlit loads `.streamlit/config.toml`.
+The dashboard requires Streamlit 1.49 or newer within 1.x for its stretch-width
+dataframe layout. Upgrade older dashboard environments before opening a kernel run.
 The dashboard supports the project's dark theme; custom light themes are not currently supported.
 
 Select `demo` and your run to view labels, actions, failed cases and budget reservations. The default-branch dashboard is a run inspector. For accept/correct/abstain actions and immutable reviewed datasets, see the [C preview and setup instructions](https://github.com/dengxianghua888-ops/preference-lab/blob/codex/iteration-c/docs/first-user-acceptance.md); it is not yet a released workbench.
