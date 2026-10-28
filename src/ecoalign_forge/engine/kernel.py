@@ -207,6 +207,8 @@ class SynthesisKernel:
                     j.set("status", "paused")
                     j.set("pause_reason", "unknown_requests")
                     return self._snapshot(j)
+                if config.execution_mode.value == "mock" and self.transport is None:
+                    raise ValueError("mock resume requires an explicit fixture transport")
                 return await self._execute(j, compiled, config)
         finally:
             j.close()
@@ -260,6 +262,14 @@ class SynthesisKernel:
                 active = [c for c in cases if c["state"] in {"unattempted", "in_progress"}]
                 if not active:
                     continue
+                pause_request = j.path / "pause-request.json"
+                if pause_request.exists():
+                    request = json.loads(pause_request.read_text())
+                    if request["run_id"] != j.get("manifest")["run_id"]:
+                        raise ValueError("Pause request belongs to another run")
+                    j.event("user_pause_observed", request)
+                    pause_request.unlink()
+                    raise RunPausedError("user_pause")
                 plans = self._seal_batch(j, compiled, config, batch)
                 with transaction(j.db):
                     for case in active:
@@ -303,6 +313,10 @@ class SynthesisKernel:
                     await asyncio.gather(*tasks, return_exceptions=True)
                     raise
             counts = j.counts()
+            # A pause arriving in the final batch needs no extra suspended work.
+            if (j.path / "pause-request.json").exists():
+                j.event("pause_no_remaining_work", {})
+                (j.path / "pause-request.json").unlink()
             status = (
                 "completed"
                 if counts.failed == 0

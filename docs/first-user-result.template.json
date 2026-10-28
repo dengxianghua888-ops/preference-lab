@@ -1,0 +1,18 @@
+{
+  "participant_id": null,
+  "first_time_user": null,
+  "commit": null,
+  "package_version": null,
+  "os": null,
+  "python_version": null,
+  "started_at": null,
+  "finished_at": null,
+  "run_ids": [],
+  "dataset_versions": [],
+  "steps": [],
+  "assistance_received": [],
+  "issues": [],
+  "evidence_sha256": {},
+  "verified_by": null,
+  "verification_status": "pending"
+}

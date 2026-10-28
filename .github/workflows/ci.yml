@@ -27,11 +27,13 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          pip install -e ".[dev,dashboard]"
 
       - name: Lint with ruff
         run: |
           ruff check .
+          python -m mypy
+          ruff format --check src/ecoalign_forge/workbench dashboard/kernel_view.py dashboard/review_view.py dashboard/dataset_view.py tests/test_iteration_c_workbench.py tests/test_iteration_c_dashboard.py scripts/accept_iteration_c.py
 
       - name: Run tests
         run: |
@@ -51,6 +53,7 @@ jobs:
         run: |
           python scripts/accept_iteration_a.py --output /tmp/ecoalign-acceptance-a
           python scripts/accept_iteration_b.py --output /tmp/ecoalign-acceptance-b
+          python scripts/accept_iteration_c.py --output /tmp/ecoalign-acceptance-c
 
   consumers:
     runs-on: ubuntu-latest
@@ -67,15 +70,15 @@ jobs:
         run: |
           uv venv /tmp/kernel
           uv pip install --python /tmp/kernel/bin/python -e '.[dev]'
-          /tmp/kernel/bin/python scripts/accept_iteration_b.py --output /tmp/acceptance --skip-fault-tests
+          /tmp/kernel/bin/python scripts/accept_iteration_c.py --output /tmp/acceptance
       - name: Install isolated locked consumer
         run: |
           uv venv /tmp/consumer
           uv pip install --python /tmp/consumer/bin/python --torch-backend cpu -r scripts/consumers/${{ matrix.consumer }}.lock
       - name: Actual loader, template, tokenizer and collator
         run: |
-          DATASET=$(find /tmp/acceptance/datasets/demo -name manifest.json -print -quit)
-          /tmp/consumer/bin/python scripts/consumers/verify.py ${{ matrix.consumer }} "$(dirname "$DATASET")" --output /tmp/${{ matrix.consumer }}-acceptance.json
+          DATASET=$(/tmp/kernel/bin/python -c 'import json; print(json.load(open("/tmp/acceptance/acceptance.json"))["first_dataset"])')
+          /tmp/consumer/bin/python scripts/consumers/verify.py ${{ matrix.consumer }} "$DATASET" --output /tmp/${{ matrix.consumer }}-acceptance.json
       - uses: actions/upload-artifact@v4
         with:
           name: consumer-${{ matrix.consumer }}
