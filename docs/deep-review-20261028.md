@@ -25,6 +25,17 @@ exports retain their exact bytes, count, dataset identity and report idempotence
 This validates the captured report snapshot; it is not filesystem isolation from
 an arbitrary same-user process or a guarantee that source files never change later.
 
+A subsequent review found another reachable C correction case: structurally valid
+saved evidence can exceed the source length. The final gate excludes the candidate
+but preserves it for inspection; initializing a correction widget with its raw
+offsets exceeded the widget's maximum. Bound only the editable start/end defaults
+to the source length and show a warning. Keep the original evidence and machine
+journal unchanged; only an explicit, gated correction writes a new human sidecar
+revision. Three new actual Streamlit AppTest cases cover start, end and both offsets,
+including explicit repair/save and original-byte preservation. Local restricted
+form/gate probes are separately labeled and do not replace those CI UI tests or
+actual human/browser acceptance.
+
 ## Verification and limits
 
 Two new real-journal tests cover the same-count post-verification drift and the

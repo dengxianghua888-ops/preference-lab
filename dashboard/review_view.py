@@ -153,18 +153,24 @@ def _decision_form(run_dir, view, source, pack):
                         index=values.index(base["rule_judgments"].get(rule.id, "unknown")),
                     )
                     ev = next((e for e in base["evidence"] if e["rule_id"] == rule.id), None)
+                    start_default = min(ev["start"], len(source.content)) if ev else 0
+                    end_default = min(ev["end"], len(source.content)) if ev else len(source.content)
+                    if ev and (start_default, end_default) != (ev["start"], ev["end"]):
+                        st.warning(
+                            "原候选证据位置越界；仅限制编辑初始值，原记录未改。请核对原文后修正。"
+                        )
                     a, b = st.columns(2)
                     start = a.number_input(
                         "起始 " + rule.id,
                         min_value=0,
                         max_value=len(source.content),
-                        value=ev["start"] if ev else 0,
+                        value=start_default,
                     )
                     end = b.number_input(
                         "结束 " + rule.id,
                         min_value=0,
                         max_value=len(source.content),
-                        value=ev["end"] if ev else len(source.content),
+                        value=end_default,
                     )
                     spans[rule.id] = (start, end)
         submitted = st.form_submit_button("校验并保存复核", type="primary")
