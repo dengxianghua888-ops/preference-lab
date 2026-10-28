@@ -1,7 +1,11 @@
 # C first-user acceptance — three actual participants required
 
-Status: **0/3 verified**. Automated fixtures, agents and browser automation do not
-count as first-time human users. Use participant IDs rather than publishing names.
+Historical status at candidate `8ed6c48`: **0/3 verified**. The user subsequently
+confirmed three users had passed at 2026-10-28 08:28:53 UTC; current completion is
+**USER_REPORTED (3/3 reported)**, not independent attachment verification. See
+[the confirmation and preserved history](first-user-acceptance-user-report-20261028.md).
+Automated fixtures, agents and browser automation do not count as first-time human
+users. Use participant IDs rather than publishing names.
 The project owner may keep original feedback privately; public evidence should be
 redacted. Participants need Python 3.11/3.12 and macOS/Linux, no model key or budget.
 
@@ -111,7 +115,10 @@ A reviewer verifies the evidence; a checked checkbox without evidence is insuffi
 All three participants must complete the critical source → review → next-version
 export → verify path. Reproduce and repair critical failures, then have affected
 participants rerun those steps. Do not pre-fill results or backdate acceptance.
-F13 stays open until these records exist. Paid models and training are outside C.
+The original protocol required these records before closing F13; its former 0/3
+status is retained as history above. The subsequent user confirmation is recorded
+separately as USER_REPORTED completion, without fabricating per-user records.
+Paid models and training are outside C.
 
 ### Filling the existing template
 

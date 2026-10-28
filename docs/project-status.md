@@ -12,7 +12,7 @@ can resolve its labels and action independently.
 | `0.3.0a2` | [Published maintenance Alpha](https://github.com/dengxianghua888-ops/ecoalign-forge/releases/tag/v0.3.0a2) | Corrected evidence gate and recorded demo |
 | `0.3.0a1` | Withdrawn pre-release; original tag/assets retained | Its 5-completed / 3-pair demo relied on unverified external misses |
 | `0.2.1a1` | Historical A Alpha | Legacy contracts; not a substitute for the B kernel |
-| `0.4.0a1` | [C preview, PR #16](https://github.com/dengxianghua888-ops/ecoalign-forge/pull/16) | Review workbench; first-user acceptance remains 0/3 |
+| `0.4.0a1` | [C preview, PR #16](https://github.com/dengxianghua888-ops/ecoalign-forge/pull/16) | Review workbench; three-user completion USER_REPORTED, not published |
 
 The corrected built-in demo produces **one completed case/pair and four machine
 abstentions**, `partial_failed` / exit 3. Previous journals and exported bytes are
@@ -25,8 +25,10 @@ old engineering acceptance cannot establish that those decisions were valid.
   regression is corrected in PR #15; release verification is version-bound.
 - F12's C workbench implementation lives on the preview branch and follows the
   corrected gate; it is separate from the published B kernel.
-- F13 still needs three actual first-time users to complete source review, correction,
-  next-version export and verification. Agent/browser automation cannot satisfy it.
+- F13's historical status was 0/3. At 2026-10-28 08:28:53 UTC the user confirmed
+  three users had passed; this is [USER_REPORTED completion](first-user-acceptance-user-report-20261028.md),
+  not independent verification of participant attachments. Agent/browser automation
+  still cannot satisfy the human condition.
 - F14 remains open: independent human preference quality, real-model performance,
   cross-language effectiveness and training benefit have not been demonstrated.
 

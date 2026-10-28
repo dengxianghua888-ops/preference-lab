@@ -3,7 +3,11 @@
 C implements the original F12–F13 scope on top of B's published commit
 `a329682322ae94a3130a75b1000777bf211ce5cb`. The integration branch is
 `codex/iteration-c`. Engineering checks and three first-user walkthroughs are
-separate gates. **F13 human acceptance is still 0/3; C release readiness is pending.**
+separate gates. The historical `8ed6c48` record was **F13 human acceptance 0/3**.
+The user subsequently confirmed three users had passed: current completion is
+**USER_REPORTED (3/3 reported)**, with no independently verified participant
+attachments supplied to the assistant. See [the confirmation](first-user-acceptance-user-report-20261028.md).
+Publication is separate and still follows the release guide.
 
 ## External-evidence correction (PR #15)
 
@@ -57,12 +61,13 @@ explicitly named `automated-acceptance-fixture`; it is not a real human particip
 No old semantic assertions were weakened. New counters describe human revision and
 curated dataset selection separately; B's machine-run counts remain unchanged.
 
-## Unmet acceptance
+## Original acceptance requirement (history retained)
 
 The original F13 exit condition requires **three actual first-time users** to finish
 installation, source review, correction, next-version export and hash/report checks.
 [Instructions and an empty result template](first-user-acceptance.md) are ready.
-No user records have been invented. The integration PR can be reviewed while this
-condition is pending; do not tag or publish the C Alpha until required gates pass.
+No user records have been invented. The former pending 0/3 status predates the
+USER_REPORTED confirmation linked above. Do not tag or publish the C Alpha until
+the applicable release steps pass; integration alone is not a release.
 F14 real-model validity, independent human preference quality and training benefits
 remain D work. C does not call paid models, train or publish to PyPI.
