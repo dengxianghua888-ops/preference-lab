@@ -32,7 +32,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dashboard = [
-    "streamlit>=1.38.0",
+    "streamlit>=1.49.0,<2",
     "plotly>=5.22.0",
     "streamlit-autorefresh>=1.0.1",
     "pandas>=2.1.0",
