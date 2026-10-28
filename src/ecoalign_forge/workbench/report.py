@@ -20,7 +20,10 @@ def build_report(run_dir: Path, output_root: Path, *, dataset: Path | None = Non
     if dataset_manifest and manifest["run_id"] not in dataset_manifest["recipe"]["run_ids"]:
         raise ValueError("Dataset does not contain the selected run")
     if dataset:
-        content = (Path(dataset) / "pairs.jsonl").read_text()
+        assert dataset_manifest is not None  # Verified above when a dataset was supplied.
+        content = (Path(dataset) / "pairs.jsonl").read_bytes().decode("utf-8")
+        if text_hash(content) != dataset_manifest["pairs_sha256"]:
+            raise ValueError("Dataset pairs changed after verification")
     else:
         pairs = sorted(
             [p for c in snapshot["cases"] for p in c["machine_pairs"]], key=lambda p: p["pair_id"]
