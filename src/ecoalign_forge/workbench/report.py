@@ -84,7 +84,7 @@ h1{font-size:28px}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#e9
     files["SHA256SUMS"] = "".join(f"{text_hash(value)}  {name}\n" for name, value in files.items())
     for name, value in files.items():
         path = directory / name
-        if path.exists() and path.read_text() != value:
+        if path.exists() and path.read_bytes() != value.encode("utf-8"):
             raise ValueError("Immutable report conflict")
         if not path.exists():
             atomic_write(path, value)

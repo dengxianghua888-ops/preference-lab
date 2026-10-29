@@ -18,7 +18,7 @@ For ML and data teams building content moderation datasets: define your rules, g
 | Investigate false positives or missed violations | Trace a candidate decision back to the source text, exact evidence span and rule snapshot. |
 | Prepare candidate DPO data | Export chosen/rejected responses in TRL or ShareGPT format, with provenance for later review. |
 
-The current Alpha provides the synthesis kernel and run dashboard. The [review workbench preview](https://github.com/dengxianghua888-ops/ecoalign-forge/pull/16) adds human decisions and curated dataset versions on a separate branch.
+The published B Alpha provides the synthesis kernel and run dashboard. The [C workbench](https://github.com/dengxianghua888-ops/preference-lab/pull/16) is now integrated in main and adds human decisions and curated dataset versions; C has not been released.
 
 ## From a case to a preference pair
 
@@ -107,7 +107,7 @@ this C workbench retains its stricter `streamlit>=1.64.0,<2` dependency.
 Upgrade older dashboard environments before opening a kernel run.
 The dashboard supports the project's dark theme; custom light themes are not currently supported.
 
-Select `demo` and your run to view labels, actions, failed cases and budget reservations. The default-branch dashboard is a run inspector. For accept/correct/abstain actions and immutable reviewed datasets, see the [C preview and setup instructions](https://github.com/dengxianghua888-ops/preference-lab/blob/codex/iteration-c/docs/first-user-acceptance.md); it is not yet a released workbench.
+Select `demo` and your run to view labels, actions, failed cases and budget reservations. Main also includes accept/correct/abstain actions and immutable reviewed datasets; see the [C setup instructions](docs/first-user-acceptance.md). The published B release remains a run inspector; C integration is not a C release.
 
 ## Documentation and contribution
 

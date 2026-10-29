@@ -16,10 +16,10 @@ and retains the withdrawn `0.3.0a1` results in a separate historical section. Se
 [project status](project-status.md) for release and preview versions. Historical
 results are not a replacement for verification against the current gate.
 
-[C review contracts](https://github.com/dengxianghua888-ops/preference-lab/blob/codex/iteration-c/docs/iteration-c-migration.md)
-and [first-user instructions](https://github.com/dengxianghua888-ops/preference-lab/blob/codex/iteration-c/docs/first-user-acceptance.md)
-are maintained on the preview branch. They are not default-branch commands.
+[C review contracts](iteration-c-migration.md)
+and [first-user instructions](first-user-acceptance.md)
+are included in main following PR #16's merge. They do not describe the published B release.
 
 `demo_report.html` is a retained historical A fixture, not a current run or a hosted
 interactive demo. Use the run inspector for current data; review-aware report
-commands belong to the C preview.
+commands are available in main's C workbench, which has not been released.

@@ -100,7 +100,7 @@ python -m streamlit run dashboard/app.py --server.port 8501
 请从仓库根目录启动，让 Streamlit 加载 `.streamlit/config.toml`。
 Dashboard 当前支持项目暗色主题，尚不支持自定义浅色主题。
 
-选择 `demo` 与实际 run，查看标签、最终动作、失败案例和预算预留。默认分支提供运行查看；接受、改判、弃权及复核数据集功能位于 [C 预览分支](https://github.com/dengxianghua888-ops/preference-lab/blob/codex/iteration-c/docs/first-user-acceptance.md)，工作台尚未发布。
+选择 `demo` 与实际 run，查看标签、最终动作、失败案例和预算预留。默认分支已集成接受、改判、弃权及复核数据集功能，见 [C 工作台使用说明](docs/first-user-acceptance.md)。已发布的 B 版本仍提供运行查看；C 合并不等于已发布。
 
 ## 文档与参与
 
