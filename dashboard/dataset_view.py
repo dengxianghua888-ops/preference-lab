@@ -155,7 +155,8 @@ def render_datasets(mode, runs, selected):
                 json.loads(line) for line in zipped.read("pairs.jsonl").decode("utf-8").splitlines()
             ]
             sources = [
-                json.loads(line) for line in zipped.read("sources.jsonl").decode("utf-8").splitlines()
+                json.loads(line)
+                for line in zipped.read("sources.jsonl").decode("utf-8").splitlines()
             ]
         if pairs:
             by_id = {p["pair_id"]: p for p in pairs}
