@@ -14,7 +14,7 @@
 | 排查误杀或漏判 | 从候选判决回到原文、精确证据位置和当时使用的规则。 |
 | 准备 DPO 候选数据 | 导出 TRL 或 ShareGPT 格式的 chosen/rejected，并保留后续复核需要的来源。 |
 
-当前 Alpha 提供合成内核与运行看板。[复核工作台预览](https://github.com/dengxianghua888-ops/ecoalign-forge/pull/16)在独立分支增加人工决定与数据集版本管理。
+已发布的 B Alpha 提供合成内核与运行看板。[C 复核工作台](https://github.com/dengxianghua888-ops/preference-lab/pull/16)已集成到 main，增加人工决定与数据集版本管理；C 尚未发布。
 
 ## 从案例到偏好对
 
