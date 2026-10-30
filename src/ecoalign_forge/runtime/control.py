@@ -122,11 +122,23 @@ class Quota:
             await asyncio.sleep(min(0.05, max(0.001, run_deadline - now)))
 
     def release(self, lease_id, usage=None):
-        if usage and "total_tokens" in usage:
+        # Keep raw supplier usage in the journal. The shared TPM charge must not
+        # fall below complete, known input/output counts when total is smaller.
+        counts = []
+        if isinstance(usage, dict):
+            total = usage.get("total_tokens")
+            if type(total) is int and total >= 0:
+                counts.append(total)
+            parts = [usage.get(key) for key in ("prompt_tokens", "completion_tokens")]
+            if all(type(value) is int and value >= 0 for value in parts):
+                counts.append(sum(parts))
+        if counts:
             self.db.execute(
-                "UPDATE leases SET active=0,tokens=? WHERE id=?", (usage["total_tokens"], lease_id)
+                "UPDATE leases SET active=0,tokens=? WHERE id=?", (max(counts), lease_id)
             )
         else:
+            # Missing/invalid usage is not evidence of zero tokens. Release only
+            # the concurrency slot and retain the original token reservation.
             self.db.execute("UPDATE leases SET active=0 WHERE id=?", (lease_id,))
 
     def close(self):

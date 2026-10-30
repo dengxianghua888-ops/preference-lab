@@ -10,7 +10,7 @@ import streamlit as st
 
 from ecoalign_forge.config import settings
 from ecoalign_forge.schemas.kernel import text_hash
-from ecoalign_forge.workbench.dataset import DatasetConfig, build_dataset, verify_dataset
+from ecoalign_forge.workbench.dataset import DatasetConfig, build_dataset, build_dataset_archive
 from ecoalign_forge.workbench.report import build_report
 from ecoalign_forge.workbench.review import snapshot_run
 
@@ -133,7 +133,7 @@ def render_datasets(mode, runs, selected):
         "数据集版本", versions, index=index, format_func=lambda p: p.parent.name[:20]
     )
     try:
-        m = verify_dataset(chosen.parent)
+        m, archive = build_dataset_archive(chosen.parent)
     except Exception as exc:
         st.error(f"数据集校验失败：{exc}。已禁用该版本的下载和报告。")
         return
@@ -150,17 +150,18 @@ def render_datasets(mode, runs, selected):
     st.code(m["dataset_version"], language=None)
     st.caption("manifest、JSONL 数量、SHA-256、复核引用及分区已校验。")
     with st.expander("逐对溯源"):
-        pairs = [
-            json.loads(line) for line in (chosen.parent / "pairs.jsonl").read_text().splitlines()
-        ]
+        with zipfile.ZipFile(io.BytesIO(archive)) as zipped:
+            pairs = [
+                json.loads(line) for line in zipped.read("pairs.jsonl").decode("utf-8").splitlines()
+            ]
+            sources = [
+                json.loads(line)
+                for line in zipped.read("sources.jsonl").decode("utf-8").splitlines()
+            ]
         if pairs:
             by_id = {p["pair_id"]: p for p in pairs}
             pid = st.selectbox("偏好对", list(by_id))
             pair = by_id[pid]
-            sources = [
-                json.loads(line)
-                for line in (chosen.parent / "sources.jsonl").read_text().splitlines()
-            ]
             source = next(
                 s for s in sources if s["record_id"] == pair["lineage"]["source_record_id"]
             )
@@ -173,13 +174,9 @@ def render_datasets(mode, runs, selected):
                     "review_history": source["reviews"],
                 }
             )
-    archive = io.BytesIO()
-    with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as z:
-        for name in ["manifest.json", *m["files"]]:
-            z.write(chosen.parent / name, name)
     st.download_button(
         "下载已校验数据集 ZIP",
-        archive.getvalue(),
+        archive,
         file_name=f"ecoalign-{m['dataset_version'][:12]}.zip",
         mime="application/zip",
         on_click="ignore",

@@ -14,7 +14,7 @@
 | 排查误杀或漏判 | 从候选判决回到原文、精确证据位置和当时使用的规则。 |
 | 准备 DPO 候选数据 | 导出 TRL 或 ShareGPT 格式的 chosen/rejected，并保留后续复核需要的来源。 |
 
-当前 Alpha 提供合成内核与运行看板。[复核工作台预览](https://github.com/dengxianghua888-ops/ecoalign-forge/pull/16)在独立分支增加人工决定与数据集版本管理。
+已发布的 B Alpha 提供合成内核与运行看板。[C 复核工作台](https://github.com/dengxianghua888-ops/preference-lab/pull/16)已集成到 main，增加人工决定与数据集版本管理；C 尚未发布。
 
 ## 从案例到偏好对
 
@@ -100,7 +100,7 @@ python -m streamlit run dashboard/app.py --server.port 8501
 请从仓库根目录启动，让 Streamlit 加载 `.streamlit/config.toml`。
 Dashboard 当前支持项目暗色主题，尚不支持自定义浅色主题。
 
-选择 `demo` 与实际 run，查看标签、最终动作、失败案例和预算预留。默认分支提供运行查看；接受、改判、弃权及复核数据集功能位于 [C 预览分支](https://github.com/dengxianghua888-ops/preference-lab/blob/codex/iteration-c/docs/first-user-acceptance.md)，工作台尚未发布。
+选择 `demo` 与实际 run，查看标签、最终动作、失败案例和预算预留。默认分支已集成接受、改判、弃权及复核数据集功能，见 [C 工作台使用说明](docs/first-user-acceptance.md)。已发布的 B 版本仍提供运行查看；C 合并不等于已发布。
 
 ## 文档与参与
 

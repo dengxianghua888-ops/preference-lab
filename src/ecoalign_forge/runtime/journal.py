@@ -564,7 +564,7 @@ class Journal:
         destination = Path(output_root) / manifest["execution_mode"] / manifest["run_id"] / version
         destination.mkdir(parents=True, exist_ok=True)
         target = destination / "pairs.jsonl"
-        if target.exists() and target.read_text() != content:
+        if target.exists() and target.read_bytes() != content.encode("utf-8"):
             raise ValueError("Immutable export has conflicting bytes")
         self.hook("before_export", {"version": version})
         if not target.exists():
@@ -614,7 +614,7 @@ class Journal:
         payload["files"] = {"pairs.jsonl": payload["pairs_sha256"]}
         for name, value in contents.items():
             path = destination / name
-            if path.exists() and path.read_text() != value:
+            if path.exists() and path.read_bytes() != value.encode("utf-8"):
                 raise ValueError("Immutable export view conflict: " + name)
             if not path.exists():
                 atomic_write(path, value)

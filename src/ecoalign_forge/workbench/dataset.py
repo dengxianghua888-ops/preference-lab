@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import os
 import shutil
 import tempfile
+import zipfile
 from collections import Counter, defaultdict
 from pathlib import Path
 
@@ -393,6 +395,30 @@ def build_dataset(
             if temporary.exists():
                 shutil.rmtree(temporary)
     return destination
+
+
+def build_dataset_archive(path: Path) -> tuple[dict, bytes]:
+    """Keep the bytes consumed by trace/download bound to the verified manifest.
+
+    Verification of a path does not protect a later read of that path. Capture
+    and hash each file's bytes once before adding them to the ZIP. Retain only
+    one file buffer and the ZIP, rather than all uncompressed export views.
+    This is not a filesystem lock or a multi-file transaction.
+    """
+    path = Path(path)
+    manifest = verify_dataset(path)
+    archive = io.BytesIO()
+    with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as zipped:
+        zipped.writestr("manifest.json", canonical(manifest) + "\n")
+        for name, expected in manifest["files"].items():
+            file = path / name
+            if file.is_symlink() or not file.resolve().is_relative_to(path.resolve()):
+                raise ValueError("Unsafe manifest file path")
+            content = file.read_bytes()
+            if hashlib.sha256(content).hexdigest() != expected:
+                raise ValueError("Dataset changed after verification: " + name)
+            zipped.writestr(name, content)
+    return manifest, archive.getvalue()
 
 
 def verify_dataset(path: Path) -> dict:
