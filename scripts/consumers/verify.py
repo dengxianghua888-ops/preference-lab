@@ -5,13 +5,57 @@ import hashlib
 import importlib.metadata
 import json
 import os
+from contextlib import contextmanager
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 
 os.environ["HF_HUB_OFFLINE"] = "1"
 os.environ["HF_DATASETS_OFFLINE"] = "1"
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 os.environ["DISABLE_VERSION_CHECK"] = "0"
+
+
+@contextmanager
+def verified_snapshot(path, consumer):
+    """Bind consumer input and report to the same verified bytes, not live paths.
+
+    This checks transport integrity against the supplied manifest, not authorship
+    or policy correctness (the producer's verify_dataset owns those checks).
+    """
+    path = Path(path)
+    manifest_bytes = (path / "manifest.json").read_bytes()
+    manifest = json.loads(manifest_bytes)
+    files = manifest.get("files")
+    required = (
+        {"trl_standard.jsonl", "trl_conversational.jsonl"}
+        if consumer == "trl"
+        else {"dataset_info.json", "train_sharegpt.json"}
+    )
+    if not isinstance(files, dict) or not required.issubset(files):
+        raise ValueError("Consumer files missing from dataset manifest")
+    with TemporaryDirectory(prefix="preference-consumer-") as temporary:
+        snapshot = Path(temporary)
+        for name, expected in files.items():
+            relative = Path(name)
+            if relative.is_absolute() or ".." in relative.parts or name == "manifest.json":
+                raise ValueError("Unsafe manifest file path")
+            source = path / relative
+            if source.is_symlink() or not source.resolve().is_relative_to(path.resolve()):
+                raise ValueError("Unsafe manifest file path")
+            content = source.read_bytes()
+            if hashlib.sha256(content).hexdigest() != expected:
+                raise ValueError("Dataset checksum mismatch: " + name)
+            target = snapshot / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(content)
+        if consumer == "llamafactory":
+            info = json.loads((snapshot / "dataset_info.json").read_bytes())
+            entry = info.get("ecoalign_forge_dpo", {})
+            if entry.get("file_name") != "train_sharegpt.json":
+                raise ValueError("Unexpected ShareGPT consumer file")
+        (snapshot / "manifest.json").write_bytes(manifest_bytes)
+        yield snapshot, manifest, hashlib.sha256(manifest_bytes).hexdigest()
 
 
 def tokenizer():
@@ -107,6 +151,8 @@ def verify_llama(path, tok):
 
     assert importlib.metadata.version("llamafactory") == "0.9.5"
     attrs = get_dataset_list(["ecoalign_forge_dpo"], str(path))[0]
+    if attrs.load_from != "file" or attrs.dataset_name != "train_sharegpt.json":
+        raise ValueError("Consumer must load the verified local ShareGPT file")
     args = DataArguments(template="default", dataset_dir=str(path), cutoff_len=200000)
     template = get_template_and_fix_tokenizer(tok, args)
     data = load_dataset("json", data_files=str(path / attrs.dataset_name), split="train")
@@ -163,17 +209,18 @@ def main():
         raise RuntimeError("Network disabled during consumer acceptance")
 
     socket.socket.connect = offline
-    tok = tokenizer()
-    result = (
-        verify_trl(args.dataset, tok) if args.consumer == "trl" else verify_llama(args.dataset, tok)
-    )
-    manifest = args.dataset / "manifest.json"
+    with verified_snapshot(args.dataset, args.consumer) as (snapshot, manifest, manifest_hash):
+        tok = tokenizer()
+        result = (
+            verify_trl(snapshot, tok) if args.consumer == "trl" else verify_llama(snapshot, tok)
+        )
     report = dict(
         consumer=args.consumer,
         version=importlib.metadata.version(args.consumer),
         tests=result,
-        dataset_manifest=json.loads(manifest.read_text()),
-        manifest_sha256=hashlib.sha256(manifest.read_bytes()).hexdigest(),
+        dataset_manifest=manifest,
+        manifest_sha256=manifest_hash,
+        input_files_verified=True,
         training_performed=False,
         pretrained_model_downloaded=False,
     )
