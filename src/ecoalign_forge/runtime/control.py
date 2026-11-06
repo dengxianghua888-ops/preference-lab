@@ -93,6 +93,12 @@ class Quota:
             if now >= run_deadline:
                 raise RunPausedError("run_deadline")
             with transaction(self.db):
+                # BEGIN IMMEDIATE can wait for another process's write lock.
+                # Sample time only after that wait for all admission decisions
+                # and lease timestamps, or a new lease may already be expired.
+                now = time.time()
+                if now >= run_deadline:
+                    raise RunPausedError("run_deadline")
                 self.db.execute("UPDATE leases SET active=0 WHERE deadline<=?", (now,))
                 active = self.db.execute(
                     "SELECT count(*) FROM leases WHERE group_name=? AND active=1",
