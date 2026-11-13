@@ -2,8 +2,11 @@
 
 Compare saved behavior on explicitly identified cases without model calls, paid
 services, new dependencies, or changes to any original run. This is a diagnostic,
-not an accuracy benchmark or a replacement for human acceptance. PR #16 and its
-first-user 0/3 acceptance requirements are unchanged.
+not an accuracy benchmark or a replacement for human acceptance. C is integrated
+in main but not released. First-user completion is **USER_REPORTED (3/3 reported)**,
+not independent attachment verification; see the
+[user confirmation and preserved history](first-user-acceptance-user-report-20261028.md).
+Offline diagnostics do not change that acceptance status.
 
 ## Try the complete example
 

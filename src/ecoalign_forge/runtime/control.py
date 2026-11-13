@@ -73,6 +73,10 @@ class Quota:
             CREATE TABLE IF NOT EXISTS groups(name TEXT PRIMARY KEY,config TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS leases(id TEXT PRIMARY KEY,group_name TEXT NOT NULL,created REAL NOT NULL,
                 deadline REAL NOT NULL,tokens INTEGER NOT NULL,active INTEGER NOT NULL,pid INTEGER NOT NULL);
+            CREATE INDEX IF NOT EXISTS leases_active_group_deadline
+                ON leases(group_name,deadline) WHERE active=1;
+            CREATE INDEX IF NOT EXISTS leases_group_created_tokens
+                ON leases(group_name,created,tokens);
         """)
         caps = canonical(dict(concurrent=config.max_concurrent, rpm=config.rpm, tpm=config.tpm))
         with transaction(self.db):
@@ -99,7 +103,13 @@ class Quota:
                 now = time.time()
                 if now >= run_deadline:
                     raise RunPausedError("run_deadline")
-                self.db.execute("UPDATE leases SET active=0 WHERE deadline<=?", (now,))
+                # Keep historical rows for late usage settlement, but never scan
+                # or rewrite them on admission. Other groups expire their own
+                # active leases when they next attempt admission.
+                self.db.execute(
+                    "UPDATE leases SET active=0 WHERE group_name=? AND active=1 AND deadline<=?",
+                    (self.config.quota_group, now),
+                )
                 active = self.db.execute(
                     "SELECT count(*) FROM leases WHERE group_name=? AND active=1",
                     (self.config.quota_group,),
