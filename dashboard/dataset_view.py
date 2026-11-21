@@ -11,6 +11,7 @@ import streamlit as st
 from ecoalign_forge.config import settings
 from ecoalign_forge.schemas.kernel import text_hash
 from ecoalign_forge.workbench.dataset import DatasetConfig, build_dataset, build_dataset_archive
+from ecoalign_forge.workbench.jsonl import read_records
 from ecoalign_forge.workbench.report import build_report
 from ecoalign_forge.workbench.review import snapshot_run
 
@@ -151,13 +152,8 @@ def render_datasets(mode, runs, selected):
     st.caption("manifest、JSONL 数量、SHA-256、复核引用及分区已校验。")
     with st.expander("逐对溯源"):
         with zipfile.ZipFile(io.BytesIO(archive)) as zipped:
-            pairs = [
-                json.loads(line) for line in zipped.read("pairs.jsonl").decode("utf-8").splitlines()
-            ]
-            sources = [
-                json.loads(line)
-                for line in zipped.read("sources.jsonl").decode("utf-8").splitlines()
-            ]
+            pairs = read_records(zipped.read("pairs.jsonl"))
+            sources = read_records(zipped.read("sources.jsonl"))
         if pairs:
             by_id = {p["pair_id"]: p for p in pairs}
             pid = st.selectbox("偏好对", list(by_id))
