@@ -17,6 +17,7 @@ from enum import StrEnum
 
 class EvolDirection(StrEnum):
     """进化方向。"""
+
     DEPTH = "depth"
     BREADTH = "breadth"
 
@@ -24,6 +25,7 @@ class EvolDirection(StrEnum):
 @dataclass(frozen=True)
 class EvolStrategy:
     """进化策略条目。"""
+
     id: str
     name: str
     direction: EvolDirection
@@ -75,7 +77,6 @@ EVOL_STRATEGIES: dict[str, EvolStrategy] = {
             "谐音字替换、emoji 序列、拼音首字母等方式隐藏。"
         ),
     ),
-
     # === 广度进化 ===
     "topic_mutation": EvolStrategy(
         id="EVOL-B-001",

@@ -127,8 +127,11 @@ class TestChaosCase:
     def test_case_id_uniqueness(self) -> None:
         """两个实例的 case_id 应不同"""
         kwargs = dict(
-            content="x", attack_strategy="edge_case",
-            target_dimension="d", expected_action="PASS", reasoning="r",
+            content="x",
+            attack_strategy="edge_case",
+            target_dimension="d",
+            expected_action="PASS",
+            reasoning="r",
         )
         c1 = ChaosCase(**kwargs)
         c2 = ChaosCase(**kwargs)
@@ -205,9 +208,7 @@ class TestChaosCase:
         )
         assert case.difficulty == Difficulty.MEDIUM
 
-    @pytest.mark.parametrize(
-        "field", ["content", "target_dimension", "reasoning"]
-    )
+    @pytest.mark.parametrize("field", ["content", "target_dimension", "reasoning"])
     def test_required_strings_min_length(self, field: str) -> None:
         """强校验：content / target_dimension / reasoning 不允许空字符串"""
         kwargs = dict(
@@ -246,19 +247,19 @@ class TestJudgeEvaluation:
 
     def test_normal_construction(self) -> None:
         """正常构建：4 个必填字段全部填齐"""
-        ev = JudgeEvaluation(**self._kwargs(
-            has_stealth_marketing=True,
-            is_ai_slop=False,
-            final_decision="T1_Shadowban",
-        ))
+        ev = JudgeEvaluation(
+            **self._kwargs(
+                has_stealth_marketing=True,
+                is_ai_slop=False,
+                final_decision="T1_Shadowban",
+            )
+        )
         assert ev.has_stealth_marketing is True
         assert ev.is_ai_slop is False
         assert ev.final_decision == "T1_Shadowban"
         assert "第一步" in ev.reasoning_trace
 
-    @pytest.mark.parametrize(
-        "tier", ["T0_Block", "T1_Shadowban", "T2_Normal", "T3_Recommend"]
-    )
+    @pytest.mark.parametrize("tier", ["T0_Block", "T1_Shadowban", "T2_Normal", "T3_Recommend"])
     def test_all_final_decision_values(self, tier: str) -> None:
         """final_decision 四个 Literal 值全部应被接受"""
         ev = JudgeEvaluation(**self._kwargs(final_decision=tier))
@@ -293,33 +294,41 @@ class TestJudgeEvaluation:
 
     def test_reasoning_trace_with_known_rule_id_passes(self) -> None:
         """引用合法规则编号 → 通过校验"""
-        ev = JudgeEvaluation(**self._kwargs(
-            reasoning_trace="第一步：发现 vx\n第二步：命中 A-002\n第三步：T1",
-            final_decision="T1_Shadowban",
-        ))
+        ev = JudgeEvaluation(
+            **self._kwargs(
+                reasoning_trace="第一步：发现 vx\n第二步：命中 A-002\n第三步：T1",
+                final_decision="T1_Shadowban",
+            )
+        )
         assert "A-002" in ev.reasoning_trace
 
     def test_reasoning_trace_with_explicit_no_match_passes(self) -> None:
         """显式声明未命中 → 通过校验"""
-        ev = JudgeEvaluation(**self._kwargs(
-            reasoning_trace="第一步：内容干净\n第二步：未命中任何规则\n第三步：T2",
-        ))
+        ev = JudgeEvaluation(
+            **self._kwargs(
+                reasoning_trace="第一步：内容干净\n第二步：未命中任何规则\n第三步：T2",
+            )
+        )
         assert "未命中" in ev.reasoning_trace
 
     def test_reasoning_trace_with_fabricated_rule_id_rejected(self) -> None:
         """编造的规则编号 → 拒绝"""
         with pytest.raises(ValidationError, match="未注册的规则编号"):
-            JudgeEvaluation(**self._kwargs(
-                reasoning_trace="第一步\n第二步：命中 A-099\n第三步：T1",
-                final_decision="T1_Shadowban",
-            ))
+            JudgeEvaluation(
+                **self._kwargs(
+                    reasoning_trace="第一步\n第二步：命中 A-099\n第三步：T1",
+                    final_decision="T1_Shadowban",
+                )
+            )
 
     def test_reasoning_trace_vague_without_opt_out_rejected(self) -> None:
         """既无规则引用也无未命中声明 → 拒绝"""
         with pytest.raises(ValidationError, match="未引用任何"):
-            JudgeEvaluation(**self._kwargs(
-                reasoning_trace="第一步：看了一眼\n第二步：感觉还行\n第三步：T2",
-            ))
+            JudgeEvaluation(
+                **self._kwargs(
+                    reasoning_trace="第一步：看了一眼\n第二步：感觉还行\n第三步：T2",
+                )
+            )
 
 
 # ────────────────────────────────────────────────────────────
@@ -366,9 +375,15 @@ class TestDPOPair:
     def test_pair_id_uniqueness(self) -> None:
         """两个实例的 pair_id 应不同"""
         kwargs = dict(
-            prompt="p", chosen="c", rejected="r",
-            chosen_score=0.8, rejected_score=0.2, preference_gap=0.6,
-            dimension="d", difficulty="easy", source_case_id="s",
+            prompt="p",
+            chosen="c",
+            rejected="r",
+            chosen_score=0.8,
+            rejected_score=0.2,
+            preference_gap=0.6,
+            dimension="d",
+            difficulty="easy",
+            source_case_id="s",
         )
         p1 = DPO_Pair(**kwargs)
         p2 = DPO_Pair(**kwargs)
@@ -378,20 +393,30 @@ class TestDPOPair:
         """preference_gap < 0 应触发 ValidationError"""
         with pytest.raises(ValidationError):
             DPO_Pair(
-                prompt="p", chosen="c", rejected="r",
-                chosen_score=0.5, rejected_score=0.5,
+                prompt="p",
+                chosen="c",
+                rejected="r",
+                chosen_score=0.5,
+                rejected_score=0.5,
                 preference_gap=-0.1,
-                dimension="d", difficulty="easy", source_case_id="s",
+                dimension="d",
+                difficulty="easy",
+                source_case_id="s",
             )
 
     def test_preference_gap_too_high(self) -> None:
         """preference_gap > 1.0 应触发 ValidationError"""
         with pytest.raises(ValidationError):
             DPO_Pair(
-                prompt="p", chosen="c", rejected="r",
-                chosen_score=0.5, rejected_score=0.5,
+                prompt="p",
+                chosen="c",
+                rejected="r",
+                chosen_score=0.5,
+                rejected_score=0.5,
                 preference_gap=1.5,
-                dimension="d", difficulty="easy", source_case_id="s",
+                dimension="d",
+                difficulty="easy",
+                source_case_id="s",
             )
 
     def test_model_dump_roundtrip(self) -> None:
@@ -475,9 +500,7 @@ class TestPipelineRun:
         run = PipelineRun()
         assert run.status == PipelineStatus.PENDING
 
-    @pytest.mark.parametrize(
-        "status", ["pending", "running", "completed", "failed"]
-    )
+    @pytest.mark.parametrize("status", ["pending", "running", "completed", "failed"])
     def test_all_status_values(self, status: str) -> None:
         """所有 PipelineStatus 枚举值"""
         run = PipelineRun(status=status)

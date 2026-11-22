@@ -14,6 +14,7 @@ from enum import StrEnum
 
 class FunctionalCategory(StrEnum):
     """HarmBench 功能分类。"""
+
     STANDARD = "standard"
     CONTEXTUAL = "contextual"
     COPYRIGHT = "copyright"
@@ -22,6 +23,7 @@ class FunctionalCategory(StrEnum):
 
 class SemanticDomain(StrEnum):
     """语义危害域（对齐 HarmBench + 国内内容安全场景扩展）。"""
+
     VIOLENCE = "violence"
     SEXUAL = "sexual_content"
     HATE_SPEECH = "hate_speech"
@@ -38,6 +40,7 @@ class SemanticDomain(StrEnum):
 @dataclass(frozen=True)
 class HarmCategory:
     """危害分类条目。"""
+
     domain: SemanticDomain
     functional_category: FunctionalCategory
     description: str

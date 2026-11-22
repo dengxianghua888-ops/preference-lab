@@ -52,12 +52,11 @@ _CURRICULUM_SCHEDULES: dict[str, dict[str, float]] = {
 @dataclass
 class CoverageReport:
     """覆盖率分析报告。"""
+
     dimension_counts: dict[str, int] = field(default_factory=dict)
     difficulty_counts: dict[str, int] = field(default_factory=dict)
     strategy_counts: dict[str, int] = field(default_factory=dict)
-    dimension_difficulty_matrix: dict[str, dict[str, int]] = field(
-        default_factory=dict
-    )
+    dimension_difficulty_matrix: dict[str, dict[str, int]] = field(default_factory=dict)
     # 欠采样区域
     undersampled_dimensions: list[str] = field(default_factory=list)
     undersampled_difficulties: list[str] = field(default_factory=list)
@@ -73,8 +72,7 @@ class CoverageReport:
             "undersampled_dimensions": self.undersampled_dimensions,
             "undersampled_difficulties": self.undersampled_difficulties,
             "undersampled_combinations": [
-                {"dimension": d, "difficulty": diff}
-                for d, diff in self.undersampled_combinations
+                {"dimension": d, "difficulty": diff} for d, diff in self.undersampled_combinations
             ],
             "coverage_score": round(self.coverage_score, 4),
         }
@@ -143,11 +141,7 @@ class AdaptiveSampler:
         # 维度 × 难度组合的欠采样
         for dim in self.target_dimensions:
             for diff in self._all_difficulties:
-                cell_count = (
-                    report.dimension_difficulty_matrix
-                    .get(dim, {})
-                    .get(diff, 0)
-                )
+                cell_count = report.dimension_difficulty_matrix.get(dim, {}).get(diff, 0)
                 if cell_count < self.min_samples_per_cell:
                     report.undersampled_combinations.append((dim, diff))
 
@@ -191,9 +185,7 @@ class AdaptiveSampler:
 
         return dict(base)
 
-    def suggest_focus_dimensions(
-        self, coverage: CoverageReport
-    ) -> list[str]:
+    def suggest_focus_dimensions(self, coverage: CoverageReport) -> list[str]:
         """建议下一批次应重点关注的维度。"""
         if coverage.undersampled_dimensions:
             return coverage.undersampled_dimensions

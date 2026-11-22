@@ -85,11 +85,13 @@ class DataStore:
                 continue  # 竞态删除，跳过
             with open(f, encoding="utf-8") as fh:
                 line_count = sum(1 for line in fh if line.strip())
-            datasets.append({
-                "filename": f.name,
-                "path": str(f),
-                "size_kb": round(stat.st_size / 1024, 1),
-                "samples": line_count,
-                "created": datetime.fromtimestamp(stat.st_mtime, tz=UTC).isoformat(),
-            })
+            datasets.append(
+                {
+                    "filename": f.name,
+                    "path": str(f),
+                    "size_kb": round(stat.st_size / 1024, 1),
+                    "samples": line_count,
+                    "created": datetime.fromtimestamp(stat.st_mtime, tz=UTC).isoformat(),
+                }
+            )
         return datasets

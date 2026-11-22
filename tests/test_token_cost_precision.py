@@ -39,8 +39,7 @@ class TokenCostPrecisionTests(unittest.IsolatedAsyncioTestCase):
             max_run_cost=Decimal(budget),
             max_attempts=1,
             models={
-                role: {"model": "synthetic-model", "max_tokens": 37}
-                for role in RunConfig().models
+                role: {"model": "synthetic-model", "max_tokens": 37} for role in RunConfig().models
             },
             prices={
                 "synthetic-model": {

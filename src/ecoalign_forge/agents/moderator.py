@@ -72,9 +72,7 @@ class Moderator(BaseAgent):
         解析重试用尽的位置为 None（由 `batch_generate_validated` 提供该语义）。
         位置对齐是 SupremeJudge 后续按 list index 关联三个 Agent 输出的关键。
         """
-        self._log(
-            f"Moderating {len(cases)} cases as {self.persona} junior reviewer"
-        )
+        self._log(f"Moderating {len(cases)} cases as {self.persona} junior reviewer")
         system_prompt = MODERATOR_PERSONAS[self.persona]
 
         prompts = []
@@ -102,10 +100,12 @@ class Moderator(BaseAgent):
 
 不要任何 markdown 包裹或额外解释文字。"""
 
-            prompts.append([
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ])
+            prompts.append(
+                [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ]
+            )
 
         results = await self.llm.batch_generate_validated(
             prompts=prompts,
@@ -117,9 +117,7 @@ class Moderator(BaseAgent):
         dropped = sum(1 for r in results if r is None)
         if dropped > 0:
             self._log(f"丢弃 {dropped} 条初级判决（解析重试已用尽）")
-        self._log(
-            f"Completed {len(results) - dropped}/{len(cases)} junior moderations"
-        )
+        self._log(f"Completed {len(results) - dropped}/{len(cases)} junior moderations")
         # 保留 None 占位以保持与 cases 的位置对齐
         return results
 
@@ -129,13 +127,9 @@ class Moderator(BaseAgent):
         try:
             data = json.loads(json_text)
         except json.JSONDecodeError as e:
-            raise SchemaValidationError(
-                f"Moderator 输出无法解析为有效 JSON: {e}"
-            ) from e
+            raise SchemaValidationError(f"Moderator 输出无法解析为有效 JSON: {e}") from e
 
         try:
             return JudgeEvaluation(**data)
         except ValidationError as e:
-            raise SchemaValidationError(
-                f"Moderator 输出不符合 JudgeEvaluation Schema: {e}"
-            ) from e
+            raise SchemaValidationError(f"Moderator 输出不符合 JudgeEvaluation Schema: {e}") from e

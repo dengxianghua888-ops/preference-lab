@@ -22,9 +22,7 @@ class ExportByteIdentityTests(unittest.IsolatedAsyncioTestCase):
         self.temporary = tempfile.TemporaryDirectory(prefix="preference-export-bytes-")
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
-        kernel = SynthesisKernel(
-            data_dir=self.root / "runs", datasets_dir=self.root / "machine"
-        )
+        kernel = SynthesisKernel(data_dir=self.root / "runs", datasets_dir=self.root / "machine")
         result = await kernel.run(builtin_pack(), RunConfig())
         self.assertEqual(result["exit_code"], 3)
         self.run = Path(result["run_dir"])
@@ -92,9 +90,7 @@ class ExportByteIdentityTests(unittest.IsolatedAsyncioTestCase):
     def test_download_archive_retains_the_exact_verified_snapshot(self):
         path = self.curated()
         original = {
-            p.relative_to(path).as_posix(): p.read_bytes()
-            for p in path.rglob("*")
-            if p.is_file()
+            p.relative_to(path).as_posix(): p.read_bytes() for p in path.rglob("*") if p.is_file()
         }
         manifest, content = dataset.build_dataset_archive(path)
         # The saved directory can change after capture; trace and ZIP use the
