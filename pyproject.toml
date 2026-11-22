@@ -21,7 +21,9 @@ classifiers = [
 ]
 
 dependencies = [
-    "litellm>=1.50.0",
+    # Upper bound + exclusions: litellm 1.82.7, 1.82.8 (2026-03) and 1.107.0 (2026-10)
+    # were compromised on PyPI. Raise the cap deliberately (Dependabot proposes it).
+    "litellm>=1.50.0,!=1.82.7,!=1.82.8,!=1.107.0,<1.111",
     "pydantic>=2.5.0",
     "pydantic-settings>=2.1.0",
     "orjson>=3.9.0",
