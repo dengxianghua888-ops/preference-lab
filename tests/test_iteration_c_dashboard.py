@@ -4,7 +4,6 @@ import json
 from pathlib import Path
 
 import pytest
-from streamlit.testing.v1 import AppTest
 
 from ecoalign_forge.config import settings
 from ecoalign_forge.policy.models import PolicyPack
@@ -13,6 +12,10 @@ from ecoalign_forge.workbench.review import read_reviews, snapshot_run
 from tests.test_iteration_b_kernel import RecordedTransport, kernel
 from tests.test_iteration_b_policy import pack_data
 from tests.test_iteration_c_workbench import demo
+
+# The dashboard is an optional extra: `pip install -e ".[dev]"` alone must
+# still collect the suite, so skip (not error) when Streamlit is absent.
+AppTest = pytest.importorskip("streamlit.testing.v1").AppTest
 
 
 @pytest.mark.asyncio
