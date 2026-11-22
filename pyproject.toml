@@ -102,6 +102,25 @@ asyncio_mode = "auto"
 addopts = "-v --tb=short"
 
 [tool.mypy]
-files = ["src/ecoalign_forge/workbench"]
+# Whole package, so new modules are type-checked by default. Modules listed in
+# the override below still carry known errors; remove an entry once it is clean.
+files = ["src/ecoalign_forge"]
 follow_imports = "silent"
 check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = [
+    "ecoalign_forge.__main__",
+    "ecoalign_forge.agents.chaos_creator",
+    "ecoalign_forge.demo.fixtures",
+    "ecoalign_forge.demo.kernel_fixtures",
+    "ecoalign_forge.engine.kernel",
+    "ecoalign_forge.engine.orchestrator",
+    "ecoalign_forge.llm.client",
+    "ecoalign_forge.policy.compiler",
+    "ecoalign_forge.runtime.control",
+    "ecoalign_forge.runtime.identity",
+    "ecoalign_forge.schemas.pipeline",
+    "ecoalign_forge.storage.metrics",
+]
+ignore_errors = true
