@@ -11,8 +11,8 @@ from ecoalign_forge.policy.builtin import builtin_pack
 from ecoalign_forge.schemas.kernel import RunConfig
 
 result = asyncio.run(SynthesisKernel().run(builtin_pack(), RunConfig()))
-assert result['exit_code'] == 3  # Four cases abstain without external evidence.
-assert result['counts']['dpo_pairs'] == 1
+assert result["exit_code"] == 3  # Four cases abstain without external evidence.
+assert result["counts"]["dpo_pairs"] == 1
 ```
 
 Parameters resolve from explicit arguments, JSON configuration, `ECOALIGN_<FIELD>` environment variables, then defaults. Nested model and price mappings are complete mappings, not partial merges. `models` defines generator, moderator, judge and reviewer with model, temperature, max_tokens and optional reasoning_effort. Provider credentials remain environment-only. Historical `CHAOS_CREATOR_MODEL`, `JUDGE_MODEL`, `DEFAULT_*` and `PARSE_*` configure only old adapters; use `ECOALIGN_MODELS` or JSON for the new kernel.
