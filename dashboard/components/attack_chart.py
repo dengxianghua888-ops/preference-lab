@@ -26,8 +26,14 @@ _STRATEGY_ZH: dict[str, str] = {
 
 # 柱状图颜色（与原始 8 色保持一致）
 _BAR_COLORS: list[str] = [
-    "#ff7675", "#e17055", "#fdcb6e", "#fd79a8",
-    "#a29bfe", "#74b9ff", "#55efc4", "#81ecec",
+    "#ff7675",
+    "#e17055",
+    "#fdcb6e",
+    "#fd79a8",
+    "#a29bfe",
+    "#74b9ff",
+    "#55efc4",
+    "#81ecec",
 ]
 
 
@@ -43,23 +49,31 @@ def render_attack_distribution(snap: DashboardSnapshot) -> None:
     strategies = [_STRATEGY_ZH[k] for k in strategy_keys]
     counts = [snap.attack_strategy_counts.get(k, 0) for k in strategy_keys]
 
-    fig = go.Figure(data=[go.Bar(
-        x=strategies, y=counts,
-        marker=dict(color=_BAR_COLORS, line=dict(width=0), cornerradius=6),
-        text=counts, textposition="outside",
-        textfont=dict(
-            family="JetBrains Mono", size=11,
-            color="rgba(255,255,255,0.5)",
-        ),
-        hovertemplate="<b>%{x}</b><br>数量: %{y}<extra></extra>",
-    )])
+    fig = go.Figure(
+        data=[
+            go.Bar(
+                x=strategies,
+                y=counts,
+                marker=dict(color=_BAR_COLORS, line=dict(width=0), cornerradius=6),
+                text=counts,
+                textposition="outside",
+                textfont=dict(
+                    family="JetBrains Mono",
+                    size=11,
+                    color="rgba(255,255,255,0.5)",
+                ),
+                hovertemplate="<b>%{x}</b><br>数量: %{y}<extra></extra>",
+            )
+        ]
+    )
     apply_layout(
         fig,
         height=400,
         xaxis=dict(
             gridcolor=GRID,
             tickfont=dict(
-                size=11, color="rgba(255,255,255,0.45)",
+                size=11,
+                color="rgba(255,255,255,0.45)",
                 family="Inter",
             ),
         ),

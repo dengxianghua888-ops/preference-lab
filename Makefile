@@ -17,14 +17,14 @@ test: ## Run tests
 
 lint: ## Lint check
 	ruff check .
-	@echo "Check formatting only for files changed in this iteration (see CI)"
+	ruff format --check .
 
-type-check: ## Check C workbench types and function bodies (scoped, not whole repository)
+type-check: ## Type-check the package (see [tool.mypy] overrides for remaining exemptions)
 	python -m mypy
 
 format: ## Auto-format
-	ruff check --fix src/ tests/
-	ruff format src/ tests/
+	ruff check --fix .
+	ruff format .
 
 clean: ## Clean artifacts
 	rm -rf dist/ build/ *.egg-info .pytest_cache .ruff_cache

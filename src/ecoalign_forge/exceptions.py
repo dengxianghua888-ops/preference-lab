@@ -24,9 +24,7 @@ class ParseRetryExhaustedError(EcoAlignError):
     def __init__(self, attempts: int, last_error: Exception) -> None:
         self.attempts = attempts
         self.last_error = last_error
-        super().__init__(
-            f"解析重试 {attempts} 次后仍失败: {last_error}"
-        )
+        super().__init__(f"解析重试 {attempts} 次后仍失败: {last_error}")
 
 
 class PipelineError(EcoAlignError):

@@ -49,14 +49,22 @@ class TestDataStore:
     def test_list_datasets(self, tmp_path: Path) -> None:
         """列出数据集"""
         store = DataStore(base_dir=tmp_path)
-        store.save_dpo_pairs([
-            DPO_Pair(
-                prompt="p", chosen="c", rejected="r",
-                chosen_score=0.9, rejected_score=0.1,
-                preference_gap=0.8, dimension="d",
-                difficulty="easy", source_case_id="c1",
-            )
-        ], run_id="run-1")
+        store.save_dpo_pairs(
+            [
+                DPO_Pair(
+                    prompt="p",
+                    chosen="c",
+                    rejected="r",
+                    chosen_score=0.9,
+                    rejected_score=0.1,
+                    preference_gap=0.8,
+                    dimension="d",
+                    difficulty="easy",
+                    source_case_id="c1",
+                )
+            ],
+            run_id="run-1",
+        )
 
         datasets = store.list_datasets()
         assert len(datasets) == 1
@@ -71,10 +79,15 @@ class TestDataStore:
         """加载后 pair_id 保持不变"""
         store = DataStore(base_dir=tmp_path)
         original = DPO_Pair(
-            prompt="p", chosen="c", rejected="r",
-            chosen_score=0.8, rejected_score=0.2,
-            preference_gap=0.6, dimension="d",
-            difficulty="medium", source_case_id="s",
+            prompt="p",
+            chosen="c",
+            rejected="r",
+            chosen_score=0.8,
+            rejected_score=0.2,
+            preference_gap=0.6,
+            dimension="d",
+            difficulty="medium",
+            source_case_id="s",
         )
         filepath = store.save_dpo_pairs([original], run_id="id-test")
         loaded = store.load_dpo_pairs(filepath)
@@ -84,10 +97,15 @@ class TestDataStore:
         """多次保存后 list_datasets 应返回所有数据集"""
         store = DataStore(base_dir=tmp_path)
         pair = DPO_Pair(
-            prompt="p", chosen="c", rejected="r",
-            chosen_score=0.7, rejected_score=0.3,
-            preference_gap=0.4, dimension="d",
-            difficulty="easy", source_case_id="s",
+            prompt="p",
+            chosen="c",
+            rejected="r",
+            chosen_score=0.7,
+            rejected_score=0.3,
+            preference_gap=0.4,
+            dimension="d",
+            difficulty="easy",
+            source_case_id="s",
         )
         # 使用不同的 run_id 以保证文件名不同
         store.save_dpo_pairs([pair], run_id="run-aaa")

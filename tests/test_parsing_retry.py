@@ -32,12 +32,8 @@ from ecoalign_forge.llm.client import LLMClient
 @pytest.fixture(autouse=True)
 def _fast_backoff(monkeypatch: pytest.MonkeyPatch) -> None:
     """把指数退避等待时间压到接近 0，避免拖慢测试。"""
-    monkeypatch.setattr(
-        "ecoalign_forge.llm.client._PARSE_RETRY_WAIT_MIN", 0
-    )
-    monkeypatch.setattr(
-        "ecoalign_forge.llm.client._PARSE_RETRY_WAIT_MAX", 0
-    )
+    monkeypatch.setattr("ecoalign_forge.llm.client._PARSE_RETRY_WAIT_MIN", 0)
+    monkeypatch.setattr("ecoalign_forge.llm.client._PARSE_RETRY_WAIT_MAX", 0)
 
 
 @pytest.fixture
@@ -67,8 +63,10 @@ def _always_stream(text: str):
 
     用于"同一条响应被重复调用 N 次"的场景（例如 test_exhausts_retries_*)。
     """
+
     async def _call(**kwargs):
         return _stream_one(text)
+
     return _call
 
 
@@ -106,9 +104,7 @@ class TestGenerateValidatedRecovery:
         good = '{"name": "ok", "score": 0.8}'
         bad = "this is not json {"
 
-        with patch(
-            "ecoalign_forge.llm.client.acompletion", new_callable=AsyncMock
-        ) as mock_ac:
+        with patch("ecoalign_forge.llm.client.acompletion", new_callable=AsyncMock) as mock_ac:
             mock_ac.side_effect = [_mock_resp(bad), _mock_resp(good)]
             result = await client.generate_validated(
                 messages=[{"role": "user", "content": "q"}],
@@ -124,9 +120,7 @@ class TestGenerateValidatedRecovery:
         """第 1 次就合法 → 仅调用 1 次"""
         good = '{"name": "first", "score": 0.5}'
 
-        with patch(
-            "ecoalign_forge.llm.client.acompletion", new_callable=AsyncMock
-        ) as mock_ac:
+        with patch("ecoalign_forge.llm.client.acompletion", new_callable=AsyncMock) as mock_ac:
             mock_ac.return_value = _mock_resp(good)
             result = await client.generate_validated(
                 messages=[{"role": "user", "content": "q"}],
@@ -145,13 +139,9 @@ class TestGenerateValidatedRecovery:
 class TestGenerateValidatedExhaustion:
     """generate_validated 重试用尽测试。"""
 
-    async def test_exhausts_retries_on_persistent_bad_json(
-        self, client: LLMClient
-    ) -> None:
+    async def test_exhausts_retries_on_persistent_bad_json(self, client: LLMClient) -> None:
         """连续 3 次坏 JSON → ParseRetryExhaustedError，调用 3 次"""
-        with patch(
-            "ecoalign_forge.llm.client.acompletion", new_callable=AsyncMock
-        ) as mock_ac:
+        with patch("ecoalign_forge.llm.client.acompletion", new_callable=AsyncMock) as mock_ac:
             mock_ac.side_effect = _always_stream("garbage")
             with pytest.raises(ParseRetryExhaustedError) as exc_info:
                 await client.generate_validated(
@@ -166,16 +156,12 @@ class TestGenerateValidatedExhaustion:
         assert not isinstance(exc_info.value, SchemaValidationError)
         assert isinstance(exc_info.value, EcoAlignError)
 
-    async def test_exhausts_on_persistent_pydantic_error(
-        self, client: LLMClient
-    ) -> None:
+    async def test_exhausts_on_persistent_pydantic_error(self, client: LLMClient) -> None:
         """JSON 合法但 Pydantic 校验持续失败 → ParseRetryExhaustedError"""
         # name 为空字符串，min_length=1 校验会失败
         invalid_pydantic = '{"name": "", "score": 0.5}'
 
-        with patch(
-            "ecoalign_forge.llm.client.acompletion", new_callable=AsyncMock
-        ) as mock_ac:
+        with patch("ecoalign_forge.llm.client.acompletion", new_callable=AsyncMock) as mock_ac:
             mock_ac.side_effect = _always_stream(invalid_pydantic)
             with pytest.raises(ParseRetryExhaustedError) as exc_info:
                 await client.generate_validated(
@@ -195,15 +181,11 @@ class TestGenerateValidatedExhaustion:
 class TestGenerateValidatedLLMError:
     """generate_validated 与 LLMError 的边界测试。"""
 
-    async def test_llm_error_not_caught_by_parse_retry(
-        self, client: LLMClient
-    ) -> None:
+    async def test_llm_error_not_caught_by_parse_retry(self, client: LLMClient) -> None:
         """内层 LLM 持续抛 ConnectionError → 由内层 generate 重试 3 次后抛 LLMError，
         外层解析重试不会再额外重试一次。
         """
-        with patch(
-            "ecoalign_forge.llm.client.acompletion", new_callable=AsyncMock
-        ) as mock_ac:
+        with patch("ecoalign_forge.llm.client.acompletion", new_callable=AsyncMock) as mock_ac:
             mock_ac.side_effect = ConnectionError("network down")
             with pytest.raises(LLMError):
                 await client.generate_validated(
@@ -223,9 +205,7 @@ class TestGenerateValidatedLLMError:
 class TestBatchGenerateValidated:
     """batch_generate_validated 测试。"""
 
-    async def test_batch_partial_failure_returns_none_for_failed(
-        self, client: LLMClient
-    ) -> None:
+    async def test_batch_partial_failure_returns_none_for_failed(self, client: LLMClient) -> None:
         """3 条 prompt 中 1 条持续返回坏 JSON → 结果为 [Item, None, Item]"""
         good_1 = '{"name": "a", "score": 0.1}'
         good_3 = '{"name": "c", "score": 0.9}'
@@ -241,9 +221,7 @@ class TestBatchGenerateValidated:
                 return _stream_one(good_3)
             return _stream_one(bad)
 
-        with patch(
-            "ecoalign_forge.llm.client.acompletion", new_callable=AsyncMock
-        ) as mock_ac:
+        with patch("ecoalign_forge.llm.client.acompletion", new_callable=AsyncMock) as mock_ac:
             mock_ac.side_effect = _side_effect
             results = await client.batch_generate_validated(
                 prompts=[
@@ -264,9 +242,7 @@ class TestBatchGenerateValidated:
         """全部 prompt 一次成功 → 结果全非 None"""
         good = '{"name": "x", "score": 0.5}'
 
-        with patch(
-            "ecoalign_forge.llm.client.acompletion", new_callable=AsyncMock
-        ) as mock_ac:
+        with patch("ecoalign_forge.llm.client.acompletion", new_callable=AsyncMock) as mock_ac:
             mock_ac.side_effect = _always_stream(good)
             results = await client.batch_generate_validated(
                 prompts=[
@@ -281,9 +257,7 @@ class TestBatchGenerateValidated:
         # 每条 prompt 一次性成功，acompletion 总共调用 2 次
         assert mock_ac.call_count == 2
 
-    async def test_batch_recovers_from_transient_parse_failure(
-        self, client: LLMClient
-    ) -> None:
+    async def test_batch_recovers_from_transient_parse_failure(self, client: LLMClient) -> None:
         """单条 prompt 第 1 次失败、第 2 次成功 → 不会被丢弃"""
         good = '{"name": "y", "score": 0.6}'
 
@@ -296,9 +270,7 @@ class TestBatchGenerateValidated:
             call_index["i"] += 1
             return _stream_one(text)
 
-        with patch(
-            "ecoalign_forge.llm.client.acompletion", new_callable=AsyncMock
-        ) as mock_ac:
+        with patch("ecoalign_forge.llm.client.acompletion", new_callable=AsyncMock) as mock_ac:
             mock_ac.side_effect = _side_effect
             results = await client.batch_generate_validated(
                 prompts=[[{"role": "user", "content": "q"}]],
@@ -348,18 +320,14 @@ class TestGenerateValidatedNonSchemaError:
       便于调试时追溯根因。
     """
 
-    async def test_unrelated_exception_propagates_immediately(
-        self, client: LLMClient
-    ) -> None:
+    async def test_unrelated_exception_propagates_immediately(self, client: LLMClient) -> None:
         """parser 抛 KeyError 应直接传播，不触发重试"""
         good = '{"name": "ok", "score": 0.5}'
 
         def buggy_parser(raw: str) -> _Item:
             raise KeyError("意外异常")
 
-        with patch(
-            "ecoalign_forge.llm.client.acompletion", new_callable=AsyncMock
-        ) as mock_ac:
+        with patch("ecoalign_forge.llm.client.acompletion", new_callable=AsyncMock) as mock_ac:
             mock_ac.return_value = _mock_resp(good)
             with pytest.raises(KeyError, match="意外异常"):
                 await client.generate_validated(
@@ -370,13 +338,9 @@ class TestGenerateValidatedNonSchemaError:
         # 关键断言：只调用 1 次，没有触发任何重试
         assert mock_ac.call_count == 1
 
-    async def test_exhausted_error_preserves_cause_chain(
-        self, client: LLMClient
-    ) -> None:
+    async def test_exhausted_error_preserves_cause_chain(self, client: LLMClient) -> None:
         """ParseRetryExhaustedError.__cause__ 应指向最后一次原始 SchemaValidationError"""
-        with patch(
-            "ecoalign_forge.llm.client.acompletion", new_callable=AsyncMock
-        ) as mock_ac:
+        with patch("ecoalign_forge.llm.client.acompletion", new_callable=AsyncMock) as mock_ac:
             mock_ac.side_effect = _always_stream("garbage")
             with pytest.raises(ParseRetryExhaustedError) as exc_info:
                 await client.generate_validated(

@@ -57,7 +57,9 @@ class QuotaUsageFloorTests(unittest.IsolatedAsyncioTestCase):
                 quota = self.quota(str(index))
                 await quota.acquire("one", 100, time.time() + 1)
                 quota.release("one", usage)
-                self.assertEqual(quota.db.execute("SELECT tokens FROM leases").fetchone()[0], expected)
+                self.assertEqual(
+                    quota.db.execute("SELECT tokens FROM leases").fetchone()[0], expected
+                )
                 await quota.acquire("boundary", 100 - expected, time.time() + 1)
                 quota.release("boundary")
                 with self.assertRaisesRegex(RunPausedError, "run_deadline"):
@@ -65,9 +67,16 @@ class QuotaUsageFloorTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_missing_or_invalid_usage_retains_reservation_and_releases_slot(self):
         for index, usage in enumerate(
-            [None, {}, {"prompt_tokens": 20}, {"total_tokens": -1}, {"total_tokens": True},
-             {"total_tokens": "10"}, {"prompt_tokens": -1, "completion_tokens": 10},
-             {"prompt_tokens": True, "completion_tokens": 10}]
+            [
+                None,
+                {},
+                {"prompt_tokens": 20},
+                {"total_tokens": -1},
+                {"total_tokens": True},
+                {"total_tokens": "10"},
+                {"prompt_tokens": -1, "completion_tokens": 10},
+                {"prompt_tokens": True, "completion_tokens": 10},
+            ]
         ):
             with self.subTest(usage=usage):
                 quota = self.quota(str(index))
@@ -80,11 +89,19 @@ class QuotaUsageFloorTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_real_transport_and_controller_preserve_raw_usage_and_exact_cost(self):
         config = RunConfig(
-            execution_mode="live", max_run_cost=1, tpm=1000,
-            models={role: {"model": "offline-fixture", "max_tokens": 100}
-                    for role in RunConfig().models},
-            prices={"offline-fixture": {"input_per_million": 1, "output_per_million": 2,
-                                        "max_input_tokens": 900}},
+            execution_mode="live",
+            max_run_cost=1,
+            tpm=1000,
+            models={
+                role: {"model": "offline-fixture", "max_tokens": 100} for role in RunConfig().models
+            },
+            prices={
+                "offline-fixture": {
+                    "input_per_million": 1,
+                    "output_per_million": 2,
+                    "max_input_tokens": 900,
+                }
+            },
         )
         journal = Journal(self.root / "run")
         self.addCleanup(journal.close)
@@ -104,9 +121,16 @@ class QuotaUsageFloorTests(unittest.IsolatedAsyncioTestCase):
                 if self.sent:
                     raise StopAsyncIteration
                 self.sent = True
-                return SimpleNamespace(model="offline-fixture", id="fixture-id", usage=usage,
-                    choices=[SimpleNamespace(delta=SimpleNamespace(content='{"ok":true}'),
-                                             finish_reason="stop")])
+                return SimpleNamespace(
+                    model="offline-fixture",
+                    id="fixture-id",
+                    usage=usage,
+                    choices=[
+                        SimpleNamespace(
+                            delta=SimpleNamespace(content='{"ok":true}'), finish_reason="stop"
+                        )
+                    ],
+                )
 
             async def aclose(self):
                 pass
@@ -116,7 +140,9 @@ class QuotaUsageFloorTests(unittest.IsolatedAsyncioTestCase):
         # controller, journal and shared quota. This is not real-provider testing.
         with patch.dict("sys.modules", {"litellm": SimpleNamespace(acompletion=sdk_call)}):
             controller = RequestController(journal, quota, config, LiteLLMTransport())
-            self.assertEqual(await controller.call("first", "judge", [], [], json.loads), {"ok": True})
+            self.assertEqual(
+                await controller.call("first", "judge", [], [], json.loads), {"ok": True}
+            )
             controller.deadline = time.time() + 0.08
             with self.assertRaisesRegex(RunPausedError, "run_deadline"):
                 await controller.call("next", "judge", [], [], json.loads)

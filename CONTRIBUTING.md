@@ -3,16 +3,23 @@
 Use Python 3.11 or 3.12 on macOS/Linux. Clone, create a virtual environment and run:
 
 ```bash
-python -m pip install -e '.[dev,dashboard]'
+uv sync --locked --extra dev --extra dashboard   # or: python -m pip install -e '.[dev,dashboard]'
+source .venv/bin/activate
 python -m pytest tests -q
-python -m ruff check .
+python -m ruff check . && python -m ruff format --check .
 make type-check
 python scripts/accept_iteration_c.py --output /tmp/ecoalign-c
 ```
 
-Run formatter checks on the files you changed; do not reformat unrelated legacy
-code. The type check covers the C workbench package, including its untyped function
-bodies; it does not claim that the entire historical codebase is strictly typed.
+CI installs from `uv.lock`, which pins every dependency with hashes. After changing
+dependencies in `pyproject.toml`, run `uv lock` and commit the updated lock file;
+Dependabot proposes upgrades weekly. Keep the litellm exclusions for known
+compromised releases when raising its upper bound.
+
+The whole repository is formatted with `ruff format`. The type check covers the
+whole package, including untyped function bodies; modules listed in the
+`[[tool.mypy.overrides]]` block of `pyproject.toml` still have known errors and are
+exempt. Remove a module from that list once it passes; do not add new ones.
 
 Tests block external LLM calls. Do not add secrets, real customer text or provider
 responses to fixtures. Add a failing contract regression for behavioral changes:

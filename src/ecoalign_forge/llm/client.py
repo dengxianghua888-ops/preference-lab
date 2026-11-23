@@ -13,7 +13,6 @@ import logging
 from collections.abc import Callable
 from typing import TypeVar
 
-import litellm
 from litellm import acompletion
 from tenacity import (
     AsyncRetrying,
@@ -50,10 +49,6 @@ _PARSE_RETRY_WAIT_MAX = settings.parse_retry_wait_max
 # 除非调用方显式传入同名参数覆盖。
 _DEFAULT_REASONING_EFFORT = settings.llm_reasoning_effort
 
-# 让 litellm 自动丢弃 provider 不支持的参数（例如 gpt-5.x 不接受 temperature != 1）。
-# 这样 agent 层的 temperature=0.9/0.5/0.2 设置对非 reasoning 模型依然生效，
-# 对 gpt-5.x 会被 litellm 透明丢弃，避免硬编码判断 provider。
-litellm.drop_params = True
 
 T = TypeVar("T")
 
@@ -98,6 +93,11 @@ class LLMClient:
         # 注入全局 reasoning_effort（若 settings 配置了且调用方未显式指定）
         if _DEFAULT_REASONING_EFFORT and "reasoning_effort" not in kwargs:
             kwargs["reasoning_effort"] = _DEFAULT_REASONING_EFFORT
+        # 让 litellm 丢弃 provider 不支持的参数（例如 gpt-5.x 不接受 temperature != 1），
+        # 使 agent 层的 temperature 设置对非 reasoning 模型仍然生效。按调用传入而非设置
+        # 全局 litellm.drop_params：全局开关会在导入本模块时静默改变同进程内所有 litellm
+        # 调用（包括 runtime 内核显式要求 drop_params=False 的路径）。
+        kwargs.setdefault("drop_params", True)
 
         try:
             stream = await acompletion(

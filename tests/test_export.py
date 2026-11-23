@@ -16,6 +16,7 @@ from ecoalign_forge.schemas.dpo import DPO_Pair
 # Fixtures
 # ──────────────────────────────────────────────────────────────
 
+
 @pytest.fixture
 def sample_pairs() -> list[DPO_Pair]:
     return [
@@ -48,6 +49,7 @@ def sample_pairs() -> list[DPO_Pair]:
 # TRL 格式
 # ──────────────────────────────────────────────────────────────
 
+
 class TestTRLFormat:
     def test_basic_conversion(self, sample_pairs):
         record = to_trl_dict(sample_pairs[0])
@@ -76,6 +78,7 @@ class TestTRLFormat:
 # ──────────────────────────────────────────────────────────────
 # ShareGPT 格式
 # ──────────────────────────────────────────────────────────────
+
 
 class TestShareGPTFormat:
     def test_basic_conversion(self, sample_pairs):

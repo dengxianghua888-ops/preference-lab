@@ -20,8 +20,10 @@ async def _stream_one(text: str):
 
 def _always_stream(text: str):
     """返回可作为 AsyncMock.side_effect 的 async callable，每次调用生成新 stream。"""
+
     async def _call(**kwargs):
         return _stream_one(text)
+
     return _call
 
 
@@ -104,6 +106,7 @@ class TestLLMClient:
 
     async def test_batch_generate_partial_failure(self, client) -> None:
         """批量生成部分失败返回空字符串"""
+
         async def _side_effect(**kwargs):
             msgs = kwargs.get("messages", [])
             if any("fail" in m.get("content", "") for m in msgs):

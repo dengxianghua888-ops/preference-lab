@@ -18,6 +18,7 @@ from enum import StrEnum
 
 class TechniqueDifficulty(StrEnum):
     """攻击技术难度。"""
+
     BASIC = "basic"
     INTERMEDIATE = "intermediate"
     ADVANCED = "advanced"
@@ -27,6 +28,7 @@ class TechniqueDifficulty(StrEnum):
 @dataclass(frozen=True)
 class AttackTechnique:
     """攻击技术条目。"""
+
     id: str
     name: str
     description: str
@@ -75,7 +77,6 @@ ATTACK_REGISTRY: dict[str, AttackTechnique] = {
         asr_baseline=0.65,
         implemented=True,
     ),
-
     # === AI 洗稿相关 ===
     "template_padding": AttackTechnique(
         id="ATK-AS-001",
@@ -95,7 +96,6 @@ ATTACK_REGISTRY: dict[str, AttackTechnique] = {
         asr_baseline=0.50,
         implemented=True,
     ),
-
     # === 越狱攻击 ===
     "role_play_jailbreak": AttackTechnique(
         id="ATK-JB-001",
