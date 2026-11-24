@@ -1,9 +1,9 @@
 # Contributing
 
-Use Python 3.11 or 3.12 on macOS/Linux. Clone, create a virtual environment and run:
+Use Python 3.11 or 3.12 and [uv](https://docs.astral.sh/uv/getting-started/installation/) on macOS/Linux. From the repository root, run:
 
 ```bash
-uv sync --locked --extra dev --extra dashboard   # or: python -m pip install -e '.[dev,dashboard]'
+uv sync --locked --python 3.12 --extra dev --extra dashboard
 source .venv/bin/activate
 python -m pytest tests -q
 python -m ruff check . && python -m ruff format --check .
@@ -11,7 +11,12 @@ make type-check
 python scripts/accept_iteration_c.py --output /tmp/ecoalign-c
 ```
 
-CI installs from `uv.lock`, which pins every dependency with hashes. After changing
+Use `--python 3.11` instead if that is your installed version. If you use pip
+instead, create and activate a Python 3.11 or 3.12 virtual environment before running
+`python -m pip install -e '.[dev,dashboard]'`. This alternative is unlocked: pip
+does not use `uv.lock` and may resolve different versions.
+
+CI uses `uv.lock` for the project environment's locked dependency versions and hashes. After changing
 dependencies in `pyproject.toml`, run `uv lock` and commit the updated lock file;
 Dependabot proposes upgrades weekly. Keep the litellm exclusions for known
 compromised releases when raising its upper bound.
