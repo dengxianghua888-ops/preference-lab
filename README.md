@@ -46,16 +46,17 @@ flowchart LR
 
 ## Get started
 
-Use Python **3.11 or 3.12** on macOS/Linux. Installation downloads dependencies; the recorded demo makes **no external model calls** and needs no API key.
+Use Python **3.11 or 3.12** and [uv](https://docs.astral.sh/uv/getting-started/installation/) on macOS/Linux. The recommended source install uses the versions and hashes recorded in `uv.lock`. The commands use Python 3.12; use `--python 3.11` if that is your installed version. Installation downloads dependencies; the recorded demo makes **no external model calls** and needs no API key.
 
 ```bash
 git clone https://github.com/dengxianghua888-ops/preference-lab.git
 cd preference-lab
-python3 -m venv .venv
+uv sync --locked --python 3.12
 source .venv/bin/activate
-python -m pip install -e .
 python -m ecoalign_forge run --demo --num-samples 5
 ```
+
+Without uv, you can create a virtual environment (`python3.12 -m venv .venv`, or `python3.11`), activate it (`source .venv/bin/activate`), and run `python -m pip install -e .` before the demo. **This is an unlocked alternative:** pip does not read `uv.lock` and may install different dependency versions.
 
 Expect **1 completed case, 1 preference pair, and 4 abstentions** from five fixtures. The status is `partial_failed`, exit **3**: those four cases need external material that the demo does not supply. Their diagnostics are saved instead of inventing a definitive answer.
 
@@ -97,11 +98,14 @@ Resume requires the original rule, model, prompt and code identities. Unknown re
 To inspect an actual run in the browser, stay in the repository root:
 
 ```bash
-python -m pip install -e '.[dashboard]'
+uv sync --locked --python 3.12 --extra dashboard
+source .venv/bin/activate
 python -m streamlit run dashboard/app.py --server.port 8501
 ```
 
-Run this command from the repository root so Streamlit loads `.streamlit/config.toml`.
+In an activated pip environment, `python -m pip install -e '.[dashboard]'` is the unlocked dashboard alternative and does not use `uv.lock`.
+
+Run the dashboard command from the repository root so Streamlit loads `.streamlit/config.toml`.
 The stretch-width dataframe API requires Streamlit 1.49 or newer within 1.x;
 this C workbench retains its stricter `streamlit>=1.64.0,<2` dependency.
 Upgrade older dashboard environments before opening a kernel run.

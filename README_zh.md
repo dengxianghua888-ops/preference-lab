@@ -42,16 +42,17 @@ flowchart LR
 
 ## 快速开始
 
-使用 **Python 3.11 / 3.12**，支持 macOS/Linux。安装依赖需要联网；预录演示**不调用外部模型，不需要 API Key**。
+在 macOS/Linux 上使用 **Python 3.11 / 3.12** 和 [uv](https://docs.astral.sh/uv/getting-started/installation/)。推荐按 `uv.lock` 中固定的版本和哈希从源码安装。示例使用 Python 3.12；如果安装的是 3.11，将 `--python 3.12` 改为 `--python 3.11`。安装依赖需要联网；预录演示**不调用外部模型，不需要 API Key**。
 
 ```bash
 git clone https://github.com/dengxianghua888-ops/preference-lab.git
 cd preference-lab
-python3 -m venv .venv
+uv sync --locked --python 3.12
 source .venv/bin/activate
-python -m pip install -e .
 python -m ecoalign_forge run --demo --num-samples 5
 ```
+
+不用 uv 时，也可创建虚拟环境（`python3.12 -m venv .venv`，也可用 `python3.11`）、激活（`source .venv/bin/activate`），再执行 `python -m pip install -e .`，然后运行演示。**这属于未锁定的备选方式**：pip 不读取 `uv.lock`，安装的依赖版本可能不同。
 
 预期结果：五条 fixture 中 **1 条完成、产生 1 对偏好数据，4 条弃权**。状态为 `partial_failed`、退出码 **3**；四条案例需要 Demo 没有提供的外部材料，因此保存诊断，不编造确定答案。
 
@@ -93,9 +94,12 @@ python -m ecoalign_forge export data/demo/runs/RUN_ID
 在仓库根目录启动运行看板：
 
 ```bash
-python -m pip install -e '.[dashboard]'
+uv sync --locked --python 3.12 --extra dashboard
+source .venv/bin/activate
 python -m streamlit run dashboard/app.py --server.port 8501
 ```
+
+在已激活的 pip 虚拟环境中，`python -m pip install -e '.[dashboard]'` 仍可用于安装看板，但不会使用 `uv.lock`。
 
 请从仓库根目录启动，让 Streamlit 加载 `.streamlit/config.toml`。
 Dashboard 当前支持项目暗色主题，尚不支持自定义浅色主题。
