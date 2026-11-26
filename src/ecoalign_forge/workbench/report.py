@@ -9,6 +9,7 @@ from pathlib import Path
 from ecoalign_forge.runtime.journal import atomic_write
 from ecoalign_forge.schemas.kernel import canonical, digest, text_hash
 from ecoalign_forge.workbench.dataset import verify_dataset
+from ecoalign_forge.workbench.jsonl import record_lines
 from ecoalign_forge.workbench.review import snapshot_run
 
 
@@ -29,7 +30,7 @@ def build_report(run_dir: Path, output_root: Path, *, dataset: Path | None = Non
             [p for c in snapshot["cases"] for p in c["machine_pairs"]], key=lambda p: p["pair_id"]
         )
         content = "".join(canonical(p) + "\n" for p in pairs)
-    count = len(content.splitlines())
+    count = len(record_lines(content))
     if count != (dataset_manifest["pairs"] if dataset_manifest else summary["counts"]["dpo_pairs"]):
         raise ValueError("Report pair count mismatch")
     # Exclude local filesystem roots, credential environment, and provider error strings.

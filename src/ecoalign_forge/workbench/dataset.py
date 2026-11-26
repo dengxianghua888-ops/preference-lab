@@ -30,6 +30,7 @@ from ecoalign_forge.schemas.kernel import (
     digest,
     text_hash,
 )
+from ecoalign_forge.workbench.jsonl import read_records
 from ecoalign_forge.workbench.review import snapshot_run
 
 BUILDER_VERSION = "curated-dataset-2"
@@ -441,8 +442,8 @@ def verify_dataset(path: Path) -> dict:
             raise ValueError("Unsafe manifest file path")
         if hashlib.sha256(file.read_bytes()).hexdigest() != expected:
             raise ValueError("Dataset checksum mismatch: " + name)
-    pairs = [json.loads(line) for line in (path / "pairs.jsonl").read_text().splitlines()]
-    sources = [json.loads(line) for line in (path / "sources.jsonl").read_text().splitlines()]
+    pairs = read_records((path / "pairs.jsonl").read_bytes())
+    sources = read_records((path / "sources.jsonl").read_bytes())
     if (
         digest(sources) != manifest["recipe"]["source_records_hash"]
         or digest(pairs) != manifest["recipe"]["pairs_hash"]
@@ -507,7 +508,7 @@ def verify_dataset(path: Path) -> dict:
             ("trl_standard.jsonl", False),
             ("trl_conversational.jsonl", True),
         ):
-            rows = [json.loads(x) for x in (prefix / name).read_text().splitlines()]
+            rows = read_records((prefix / name).read_bytes())
             if rows != [
                 to_trl_dict(PreferencePair.model_validate(p), conversational=conversational)
                 for p in subset
